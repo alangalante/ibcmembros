@@ -41,10 +41,8 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
 
       transaction.update(eventRef, updateData);
 
-      const scope = current.scope;
-      if (scope === "global") {
-        recordChange(transaction, { entity: "event", entityId: eventId, operation: "update", scope: "global", actorId: actor.uid });
-      } else {
+      recordChange(transaction, { entity: "event", entityId: eventId, operation: "update", scope: "global", actorId: actor.uid });
+      if (current.scope === "groups") {
         const gIds: string[] = current.groupIds ?? [];
         for (const groupId of gIds) {
           recordChange(transaction, { entity: "event", entityId: eventId, operation: "update", scope: "group", groupId, actorId: actor.uid });
@@ -78,10 +76,8 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
 
       transaction.delete(eventRef);
 
-      const scope = current.scope;
-      if (scope === "global") {
-        recordChange(transaction, { entity: "event", entityId: eventId, operation: "delete", scope: "global", actorId: actor.uid });
-      } else {
+      recordChange(transaction, { entity: "event", entityId: eventId, operation: "delete", scope: "global", actorId: actor.uid });
+      if (current.scope === "groups") {
         const gIds: string[] = current.groupIds ?? [];
         for (const groupId of gIds) {
           recordChange(transaction, { entity: "event", entityId: eventId, operation: "delete", scope: "group", groupId, actorId: actor.uid });

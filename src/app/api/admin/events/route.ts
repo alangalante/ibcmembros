@@ -44,9 +44,8 @@ export async function POST(request: NextRequest) {
         updatedAt: FieldValue.serverTimestamp(),
       });
 
-      if (scope === "global") {
-        recordChange(transaction, { entity: "event", entityId: eventId, operation: "create", scope: "global", actorId: actor.uid });
-      } else {
+      recordChange(transaction, { entity: "event", entityId: eventId, operation: "create", scope: "global", actorId: actor.uid });
+      if (scope === "groups") {
         for (const groupId of groupIds) {
           recordChange(transaction, { entity: "event", entityId: eventId, operation: "create", scope: "group", groupId, actorId: actor.uid });
         }

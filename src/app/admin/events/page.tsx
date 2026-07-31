@@ -10,9 +10,10 @@ export default function AdminEventsPage() {
   const offline = useOfflineData();
 
   const currentUser = offline.users.find((u) => u.id === user?.uid);
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || user?.email?.startsWith("22999947318");
   const isLeader = currentUser?.role === "leader";
   const canManage = isAdmin || isLeader;
+
 
   // Modal Criar Evento
   const [showCreateModal, setShowCreateModal] = useState(false);

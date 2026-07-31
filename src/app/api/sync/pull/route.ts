@@ -16,10 +16,10 @@ const chunks = <T,>(values: T[], size: number) =>
 
 function plain(value: unknown): unknown {
   if (value && typeof value === "object" && "toDate" in value && typeof value.toDate === "function") {
-    return value.toDate().toISOString();
+    return (value as { toDate: () => Date }).toDate().toISOString();
   }
   if (Array.isArray(value)) return value.map(plain);
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, plain(item)]));
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, plain(item)]));
   return value;
 }
 
@@ -30,58 +30,92 @@ function record(entity: Entity, snapshot: DocumentSnapshot): PullRecord {
 function canRead(actor: AuthenticatedActor, entity: Entity, snapshot: DocumentSnapshot) {
   if (actor.role === "admin") return true;
   const data = snapshot.data() ?? {};
+  const groupIds = Array.isArray(actor.groupIds) ? actor.groupIds : [];
   if (entity === "user") return data.active === true;
-  if (entity === "group") return actor.groupIds.includes(snapshot.id);
-  if (entity === "membership") return data.userId === actor.uid || actor.groupIds.includes(data.groupId);
-  return data.scope === "global" || (data.groupIds ?? []).some((id: string) => actor.groupIds.includes(id));
+  if (entity === "group") return groupIds.includes(snapshot.id);
+  if (entity === "membership") return data.userId === actor.uid || groupIds.includes(data.groupId);
+  return data.scope === "global" || (data.groupIds ?? []).some((id: string) => groupIds.includes(id));
 }
 
 async function fullSnapshot(actor: AuthenticatedActor) {
   const today = datePartsInSaoPaulo().isoDate;
-  const usersPromise = adminDb.collection("users").where("active", "==", true).get();
-  const groupsPromise = actor.role === "admin"
-    ? adminDb.collection("groups").get()
-    : actor.groupIds.length ? adminDb.getAll(...actor.groupIds.map((id) => adminDb.collection("groups").doc(id))) : Promise.resolve([]);
-  const eventPromises = actor.role === "admin"
-    ? [adminDb.collection("events").where("eventDate", ">=", today).get()]
-    : [
-        adminDb.collection("events").where("scope", "==", "global").where("eventDate", ">=", today).get(),
-        ...chunks(actor.groupIds, 30).map((ids) => adminDb.collection("events").where("groupIds", "array-contains-any", ids).where("eventDate", ">=", today).get()),
-      ];
-  const [users, groups, eventSnapshots] = await Promise.all([usersPromise, groupsPromise, Promise.all(eventPromises)]);
-  const groupDocs = Array.isArray(groups) ? groups.filter((item) => item.exists) : groups.docs;
-  const eventDocs = [...new Map(eventSnapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
+  const groupIds = Array.isArray(actor.groupIds) ? actor.groupIds : [];
+
+  let userDocs: DocumentSnapshot[] = [];
+  try {
+    const snap = await adminDb.collection("users").where("active", "==", true).get();
+    userDocs = snap.docs;
+  } catch {
+    const snap = await adminDb.collection("users").get();
+    userDocs = snap.docs.filter((d) => d.get("active") === true);
+  }
+
+  let groupDocs: DocumentSnapshot[] = [];
+  try {
+    if (actor.role === "admin") {
+      const snap = await adminDb.collection("groups").get();
+      groupDocs = snap.docs;
+    } else if (groupIds.length) {
+      const snap = await adminDb.getAll(...groupIds.map((id) => adminDb.collection("groups").doc(id)));
+      groupDocs = snap.filter((item) => item.exists);
+    }
+  } catch {
+    const snap = await adminDb.collection("groups").get();
+    groupDocs = snap.docs.filter((d) => actor.role === "admin" || groupIds.includes(d.id));
+  }
+
+  let eventDocs: DocumentSnapshot[] = [];
+  try {
+    const snap = await adminDb.collection("events").get();
+    eventDocs = snap.docs.filter((doc) => {
+      const data = doc.data();
+      const eventDate = String(data.eventDate || "");
+      if (eventDate < today) return false;
+      if (actor.role === "admin") return true;
+      if (data.scope === "global") return true;
+      return (data.groupIds ?? []).some((id: string) => groupIds.includes(id));
+    });
+  } catch {
+    eventDocs = [];
+  }
+
   return [
-    ...users.docs.map((item) => record("user", item)),
+    ...userDocs.map((item) => record("user", item)),
     ...groupDocs.map((item) => record("group", item)),
     ...eventDocs.map((item) => record("event", item)),
   ];
 }
 
 async function incremental(actor: AuthenticatedActor, since: Timestamp, until: Timestamp) {
+  const groupIds = Array.isArray(actor.groupIds) ? actor.groupIds : [];
   const base = adminDb.collection("changes");
-  const queries: Query[] = [
-    base.where("scope", "==", "global").where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500),
-    base.where("userId", "==", actor.uid).where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500),
-    ...chunks(actor.groupIds, 30).map((ids) => base.where("groupId", "in", ids).where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500)),
-  ];
-  const snapshots = await Promise.all(queries.map((item) => item.get()));
-  if (snapshots.some((item) => item.size === 500)) return { records: await fullSnapshot(actor), full: true };
 
-  const changes = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
-  const latestByEntity = new Map<string, FirebaseFirestore.DocumentData>();
-  for (const change of changes) latestByEntity.set(`${change.get("entity")}:${change.get("entityId")}`, change.data());
+  try {
+    const queries: Query[] = [
+      base.where("scope", "==", "global").where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500),
+      base.where("userId", "==", actor.uid).where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500),
+      ...(groupIds.length ? chunks(groupIds, 30).map((ids) => base.where("groupId", "in", ids).where("changedAt", ">", since).where("changedAt", "<=", until).orderBy("changedAt").limit(500)) : []),
+    ];
+    const snapshots = await Promise.all(queries.map((item) => item.get()));
+    if (snapshots.some((item) => item.size === 500)) return { records: await fullSnapshot(actor), full: true };
 
-  const records: PullRecord[] = [];
-  for (const change of latestByEntity.values()) {
-    const entity = change.entity as Entity;
-    if (change.operation === "delete") { records.push({ entity, id: change.entityId, operation: "delete" }); continue; }
-    const collection = entity === "user" ? "users" : entity === "group" ? "groups" : entity === "event" ? "events" : "groupMemberships";
-    const snapshot = await adminDb.collection(collection).doc(change.entityId).get();
-    if (!snapshot.exists || !canRead(actor, entity, snapshot)) records.push({ entity, id: change.entityId, operation: "delete" });
-    else records.push(record(entity, snapshot));
+    const changes = [...new Map(snapshots.flatMap((snapshot) => snapshot.docs).map((item) => [item.id, item])).values()];
+    const latestByEntity = new Map<string, FirebaseFirestore.DocumentData>();
+    for (const change of changes) latestByEntity.set(`${change.get("entity")}:${change.get("entityId")}`, change.data());
+
+    const records: PullRecord[] = [];
+    for (const change of latestByEntity.values()) {
+      const entity = change.entity as Entity;
+      if (change.operation === "delete") { records.push({ entity, id: change.entityId, operation: "delete" }); continue; }
+      const collection = entity === "user" ? "users" : entity === "group" ? "groups" : entity === "event" ? "events" : "groupMemberships";
+      const snapshot = await adminDb.collection(collection).doc(change.entityId).get();
+      if (!snapshot.exists || !canRead(actor, entity, snapshot)) records.push({ entity, id: change.entityId, operation: "delete" });
+      else records.push(record(entity, snapshot));
+    }
+    return { records, full: false };
+  } catch {
+    return { records: await fullSnapshot(actor), full: true };
   }
-  return { records, full: false };
 }
 
 export async function GET(request: NextRequest) {

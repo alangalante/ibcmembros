@@ -13,12 +13,49 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedA
   if (!authorization?.startsWith("Bearer ")) throw new ApiError(401, "Token de autenticação ausente");
 
   let decoded;
-  try { decoded = await adminAuth.verifyIdToken(authorization.slice(7)); }
-  catch { throw new ApiError(401, "Token de autenticação inválido"); }
+  try {
+    decoded = await adminAuth.verifyIdToken(authorization.slice(7));
+  } catch (err) {
+    console.error("Erro na verificação do ID Token do Firebase Auth:", err);
+    throw new ApiError(401, "Token de autenticação inválido ou expirado");
+  }
 
-  const profile = await adminDb.collection("users").doc(decoded.uid).get();
-  if (!profile.exists || profile.get("active") !== true) throw new ApiError(403, "Usuário inativo ou sem perfil");
-  return { uid: decoded.uid, role: profile.get("role") as AccessRole, active: true, groupIds: (profile.get("groupIds") ?? []) as string[] };
+  let profile = await adminDb.collection("users").doc(decoded.uid).get();
+
+  // Se o usuário foi autenticado no Firebase Auth mas ainda não possuía documento no Firestore, cria um perfil ativo
+  if (!profile.exists) {
+    const rawPhone = decoded.email?.replace("@ibcmembros.internal", "") || "";
+    const name = decoded.name || (rawPhone ? `Membro (${rawPhone})` : "Novo Membro");
+
+    const defaultProfile = {
+      name,
+      nameSearch: name.toLowerCase(),
+      birthMonthDay: "01-01",
+      phoneE164: rawPhone,
+      photoUrl: decoded.picture || null,
+      photoPublicId: null,
+      role: "common" as AccessRole,
+      type: "member",
+      groupIds: [],
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await adminDb.collection("users").doc(decoded.uid).set(defaultProfile, { merge: true });
+    profile = await adminDb.collection("users").doc(decoded.uid).get();
+  }
+
+  if (profile.get("active") !== true) {
+    throw new ApiError(403, "Cadastro inativo. Entre em contato com a liderança da igreja.");
+  }
+
+  return {
+    uid: decoded.uid,
+    role: (profile.get("role") as AccessRole) || "common",
+    active: true,
+    groupIds: (profile.get("groupIds") ?? []) as string[],
+  };
 }
 
 export function requireAdmin(actor: AuthenticatedActor) {
@@ -31,9 +68,11 @@ export function requireLeaderOrAdmin(actor: AuthenticatedActor) {
   }
 }
 
-
 export function errorResponse(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    console.error("Erro interno do servidor em API route:", error);
+  }
   const status = error instanceof ApiError ? error.status : 500;
-  const message = error instanceof ApiError ? error.message : "Erro interno";
+  const message = error instanceof ApiError ? error.message : "Erro interno do servidor";
   return Response.json({ error: message }, { status });
 }

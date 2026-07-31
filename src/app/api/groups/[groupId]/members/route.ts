@@ -20,6 +20,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ gr
       const userRef = adminDb.collection("users").doc(parsed.data.userId);
       const [group, user] = await Promise.all([transaction.get(groupRef), transaction.get(userRef)]);
       if (!group.exists || !user.exists) throw new ApiError(404, "Grupo ou usuário não encontrado");
+
       const leaders = (group.get("leaderIds") ?? []) as string[];
       const canManage = actor.role === "admin" || leaders.includes(actor.uid);
       if (!canManage) throw new ApiError(403, "Você não lidera este grupo");
@@ -27,18 +28,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ gr
 
       const participantIds = [...new Set([...((group.get("participantIds") ?? []) as string[]), parsed.data.userId])];
       const leaderIds = parsed.data.isLeader ? [...new Set([...leaders, parsed.data.userId])] : leaders;
+
       transaction.update(groupRef, { participantIds, leaderIds, updatedAt: FieldValue.serverTimestamp() });
       transaction.update(userRef, { groupIds: FieldValue.arrayUnion(groupId), updatedAt: FieldValue.serverTimestamp() });
       transaction.set(adminDb.collection("groupMemberships").doc(`${groupId}_${parsed.data.userId}`), {
         groupId, userId: parsed.data.userId, isLeader: parsed.data.isLeader, active: true,
         joinedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
+
+      recordChange(transaction, { entity: "group", entityId: groupId, operation: "update", scope: "global", actorId: actor.uid });
+      recordChange(transaction, { entity: "user", entityId: parsed.data.userId, operation: "update", scope: "global", actorId: actor.uid });
       recordChange(transaction, { entity: "membership", entityId: `${groupId}_${parsed.data.userId}`, operation: "create", scope: "group", groupId, actorId: actor.uid, participantIds });
-      recordChange(transaction, { entity: "membership", entityId: `${groupId}_${parsed.data.userId}`, operation: "update", scope: "user", userId: parsed.data.userId, actorId: actor.uid });
       recordAudit(transaction, actor.uid, "group.member.add", `${groupId}_${parsed.data.userId}`);
     });
+
     return NextResponse.json({ ok: true }, { status: 201 });
-  } catch (error) { return errorResponse(error); }
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 export async function DELETE(request: NextRequest, context: { params: Promise<{ groupId: string }> }) {
@@ -65,8 +72,9 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       transaction.update(userRef, { groupIds: FieldValue.arrayRemove(groupId), updatedAt: FieldValue.serverTimestamp() });
       transaction.delete(adminDb.collection("groupMemberships").doc(`${groupId}_${userId}`));
 
+      recordChange(transaction, { entity: "group", entityId: groupId, operation: "update", scope: "global", actorId: actor.uid });
+      recordChange(transaction, { entity: "user", entityId: userId, operation: "update", scope: "global", actorId: actor.uid });
       recordChange(transaction, { entity: "membership", entityId: `${groupId}_${userId}`, operation: "delete", scope: "group", groupId, actorId: actor.uid, participantIds });
-      recordChange(transaction, { entity: "membership", entityId: `${groupId}_${userId}`, operation: "update", scope: "user", userId, actorId: actor.uid });
       recordAudit(transaction, actor.uid, "group.member.remove", `${groupId}_${userId}`);
     });
 

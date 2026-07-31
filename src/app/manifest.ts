@@ -3,15 +3,16 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "IBC Membros",
-    short_name: "IBC",
+    short_name: "IBC Membros",
     description: "Gestão de membros, grupos e eventos da igreja",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f7f5",
-    theme_color: "#176b4d",
+    background_color: "#ffffff",
+    theme_color: "#065f46",
     icons: [
-      { src: "/icons/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
-      { src: "/icons/icon-512.svg", sizes: "512x512", type: "image/svg+xml" },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

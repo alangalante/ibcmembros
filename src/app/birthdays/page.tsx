@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { NavHeader } from "@/components/nav-header";
 import { useOfflineData } from "@/components/offline-data-provider";
-
-
+import { formatWhatsAppLink } from "@/lib/phone-auth";
 
 export default function BirthdaysPage() {
   const { user, loading } = useAuth();
@@ -28,17 +27,33 @@ export default function BirthdaysPage() {
           {(offline.status === "loading-cache" || offline.status === "syncing") && !people.length && <p className="text-sm text-slate-500">Carregando dados locais…</p>}
           {offline.status !== "loading-cache" && !people.length && <p className="rounded-2xl bg-white p-5 text-sm text-slate-500">Nenhum aniversariante hoje.</p>}
           {people.map((person) => {
-            const phone = person.phoneE164.replace(/\D/g, "");
-            return <article key={person.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-              {person.photoUrl ? <Image src={person.photoUrl} alt="" width={64} height={64} className="size-16 rounded-full object-cover" /> : <div className="grid size-16 shrink-0 place-items-center rounded-full bg-emerald-100 text-2xl">🎂</div>}
-              <div className="min-w-0 flex-1"><h2 className="truncate font-semibold text-slate-900">{person.name}</h2><p className="text-xs text-slate-500">{person.birthMonthDay.split("-").reverse().join("/")}</p>
-                {phone && <a href={`https://wa.me/${phone}?text=${encodeURIComponent(`Feliz aniversário, ${person.name}!`)}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs font-bold text-emerald-800 hover:underline">Enviar mensagem WhatsApp →</a>}
-              </div>
-            </article>;
+            const whatsappUrl = `${formatWhatsAppLink(person.phoneE164)}?text=${encodeURIComponent(`Feliz aniversário, ${person.name}!`)}`;
+            return (
+              <article key={person.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+                {person.photoUrl ? (
+                  <Image src={person.photoUrl} alt="" width={64} height={64} className="size-16 rounded-full object-cover" />
+                ) : (
+                  <div className="grid size-16 shrink-0 place-items-center rounded-full bg-emerald-100 text-2xl">🎂</div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-semibold text-slate-900">{person.name}</h2>
+                  <p className="text-xs text-slate-500">{person.birthMonthDay.split("-").reverse().join("/")}</p>
+                  {person.phoneE164 && (
+                    <a
+                      href={whatsappUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block text-xs font-bold text-emerald-800 hover:underline"
+                    >
+                      Enviar mensagem WhatsApp →
+                    </a>
+                  )}
+                </div>
+              </article>
+            );
           })}
         </div>
       </main>
     </div>
   );
 }
-

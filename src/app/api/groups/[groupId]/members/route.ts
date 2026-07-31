@@ -40,3 +40,38 @@ export async function POST(request: NextRequest, context: { params: Promise<{ gr
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ groupId: string }> }) {
+  try {
+    const actor = await authenticate(request);
+    const { groupId } = await context.params;
+    const { userId } = await request.json();
+    if (!userId) throw new ApiError(400, "ID do usuário é obrigatório");
+
+    await adminDb.runTransaction(async (transaction) => {
+      const groupRef = adminDb.collection("groups").doc(groupId);
+      const userRef = adminDb.collection("users").doc(userId);
+      const [group, user] = await Promise.all([transaction.get(groupRef), transaction.get(userRef)]);
+      if (!group.exists || !user.exists) throw new ApiError(404, "Grupo ou usuário não encontrado");
+
+      const leaders = (group.get("leaderIds") ?? []) as string[];
+      const canManage = actor.role === "admin" || leaders.includes(actor.uid);
+      if (!canManage) throw new ApiError(403, "Você não tem permissão para gerenciar este grupo");
+
+      const participantIds = ((group.get("participantIds") ?? []) as string[]).filter((id) => id !== userId);
+      const leaderIds = leaders.filter((id) => id !== userId);
+
+      transaction.update(groupRef, { participantIds, leaderIds, updatedAt: FieldValue.serverTimestamp() });
+      transaction.update(userRef, { groupIds: FieldValue.arrayRemove(groupId), updatedAt: FieldValue.serverTimestamp() });
+      transaction.delete(adminDb.collection("groupMemberships").doc(`${groupId}_${userId}`));
+
+      recordChange(transaction, { entity: "membership", entityId: `${groupId}_${userId}`, operation: "delete", scope: "group", groupId, actorId: actor.uid, participantIds });
+      recordChange(transaction, { entity: "membership", entityId: `${groupId}_${userId}`, operation: "update", scope: "user", userId, actorId: actor.uid });
+      recordAudit(transaction, actor.uid, "group.member.remove", `${groupId}_${userId}`);
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

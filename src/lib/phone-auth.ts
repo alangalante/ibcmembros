@@ -19,6 +19,17 @@ export function phoneToInternalEmail(phone: string): string {
 }
 
 /**
+ * Gera a URL oficial do WhatsApp garantindo que o DDI +55 (Brasil) seja incluído no link.
+ */
+export function formatWhatsAppLink(phone: string): string {
+  let digits = phone.replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) {
+    digits = `55${digits}`;
+  }
+  return `https://wa.me/${digits}`;
+}
+
+/**
  * Retorna o nome amigável para exibição no aplicativo, nunca expondo o e-mail interno sintético.
  */
 export function getCleanDisplayName(

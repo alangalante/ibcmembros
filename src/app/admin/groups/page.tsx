@@ -144,6 +144,29 @@ export default function AdminGroupsPage() {
     }
   }
 
+  async function handleRemoveMemberFromGroup(userId: string) {
+    if (!editingGroupId) return;
+    if (!confirm("Remover este membro do grupo?")) return;
+
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/groups/${editingGroupId}/members`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao remover participante");
+      await offline.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao remover participante");
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
       <NavHeader />
@@ -182,7 +205,7 @@ export default function AdminGroupsPage() {
 
                   <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2 text-xs text-slate-500">
                     <span>Líderes: {leaders.map((l) => l.name).join(", ") || "Nenhum atribuído"}</span>
-                    <span className="font-semibold text-emerald-800">Editar →</span>
+                    <span className="font-semibold text-emerald-800">Gerenciar →</span>
                   </div>
                 </article>
               );
@@ -197,7 +220,7 @@ export default function AdminGroupsPage() {
 
       {/* Modal Criar Grupo */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <h2 className="text-lg font-bold">Novo Grupo de Comunhão</h2>
             {createError && <p className="mt-2 text-xs font-semibold text-rose-700">{createError}</p>}
@@ -249,7 +272,7 @@ export default function AdminGroupsPage() {
 
       {/* Modal Editar Grupo & Gerenciar Participantes */}
       {editingGroupId && editingGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <h2 className="text-lg font-bold">Editar Grupo: {editingGroup.name}</h2>
             {editError && <p className="mt-2 text-xs font-semibold text-rose-700">{editError}</p>}
@@ -293,16 +316,56 @@ export default function AdminGroupsPage() {
                 <button
                   type="submit"
                   disabled={editLoading}
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm"
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-slate-800"
                 >
                   {editLoading ? "Salvando…" : "Atualizar Dados Básicos"}
                 </button>
               </div>
             </form>
 
+            {/* Lista de Membros Atualmente Vinculados */}
+            <div className="mt-6 border-t border-slate-100 pt-4">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                Membros no Grupo ({editingGroup.participantIds.length})
+              </h3>
+              <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto pr-1">
+                {editingGroup.participantIds.length ? (
+                  editingGroup.participantIds.map((memberId) => {
+                    const member = offline.users.find((u) => u.id === memberId);
+                    const isLeader = editingGroup.leaderIds.includes(memberId);
+                    if (!member) return null;
+                    return (
+                      <div key={memberId} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                        <div className="flex items-center gap-2.5">
+                          <div className="grid size-8 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800 shadow-2xs">
+                            {member.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{member.name}</p>
+                            <span className={`text-[10px] font-bold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
+                              {isLeader ? "⭐ Líder do Grupo" : "Membro"}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMemberFromGroup(memberId)}
+                          className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                        >
+                          Desvincular
+                        </button>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-400 italic">Nenhum participante vinculado ainda.</p>
+                )}
+              </div>
+            </div>
+
             {/* Adicionar Participante */}
             <div className="mt-6 border-t border-slate-100 pt-4">
-              <h3 className="text-xs font-bold text-slate-700 uppercase">Adicionar Participante / Líder</h3>
+              <h3 className="text-xs font-bold text-slate-700 uppercase">Adicionar Novo Participante / Líder</h3>
               {memberAddError && <p className="mt-1 text-xs text-rose-700">{memberAddError}</p>}
 
               <form onSubmit={handleAddMemberToGroup} className="mt-2 space-y-2">
@@ -312,12 +375,14 @@ export default function AdminGroupsPage() {
                   onChange={(e) => setSelectedUserToAdd(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                 >
-                  <option value="">Selecione uma pessoa…</option>
-                  {offline.users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.type === "member" ? "Membro" : "Visitante"})
-                    </option>
-                  ))}
+                  <option value="">Selecione uma pessoa para vincular…</option>
+                  {offline.users
+                    .filter((u) => !editingGroup.participantIds.includes(u.id))
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.type === "member" ? "Membro" : "Visitante"})
+                      </option>
+                    ))}
                 </select>
 
                 <div className="flex items-center justify-between">
@@ -334,9 +399,9 @@ export default function AdminGroupsPage() {
                   <button
                     type="submit"
                     disabled={memberAddLoading || !selectedUserToAdd}
-                    className="rounded-xl bg-emerald-800 px-3 py-1.5 text-xs font-bold text-white"
+                    className="rounded-xl bg-emerald-800 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-900"
                   >
-                    {memberAddLoading ? "Viculando…" : "+ Vincular"}
+                    {memberAddLoading ? "Vinculando…" : "+ Vincular ao Grupo"}
                   </button>
                 </div>
               </form>

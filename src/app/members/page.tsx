@@ -7,7 +7,8 @@ import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
 import { PhotoUpload } from "@/components/photo-upload";
-import { normalizeDDDPhone } from "@/lib/phone-auth";
+import { formatWhatsAppLink, normalizeDDDPhone } from "@/lib/phone-auth";
+
 
 type PersonFilter = "all" | "member" | "visitor" | "inactive";
 
@@ -386,13 +387,14 @@ export default function MembersDirectoryPage() {
                 <div className="mt-1 flex items-center justify-between">
                   <p className="text-sm font-bold text-slate-900">{viewingUser.phoneE164}</p>
                   <a
-                    href={`https://wa.me/${normalizeDDDPhone(viewingUser.phoneE164)}`}
+                    href={formatWhatsAppLink(viewingUser.phoneE164)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
                   >
                     💬 WhatsApp
                   </a>
+
                 </div>
               </div>
 

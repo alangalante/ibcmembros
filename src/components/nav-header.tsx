@@ -32,11 +32,12 @@ export function NavHeader() {
 
   const navItems = [
     { label: "Início", href: "/" },
+    { label: "Membros", href: "/members" },
     { label: "Aniversários", href: "/birthdays" },
-    ...(isAdmin ? [{ label: "Membros", href: "/admin/users" }] : []),
     ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups" }] : []),
     ...(canManageEvents ? [{ label: "Eventos", href: "/admin/events" }] : []),
   ];
+
 
   return (
     <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-white/95 backdrop-blur-md">

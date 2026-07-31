@@ -57,3 +57,31 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
   } catch (error) { return errorResponse(error); }
 }
 
+export async function DELETE(request: NextRequest, context: { params: Promise<{ uid: string }> }) {
+  try {
+    const actor = await authenticate(request);
+    requireAdmin(actor);
+    const { uid } = await context.params;
+
+    await adminDb.runTransaction(async (transaction) => {
+      const userRef = adminDb.collection("users").doc(uid);
+      const userPrivateRef = adminDb.collection("userPrivate").doc(uid);
+      const userDoc = await transaction.get(userRef);
+
+      if (!userDoc.exists) throw new ApiError(404, "Usuário não encontrado");
+
+      transaction.delete(userRef);
+      transaction.delete(userPrivateRef);
+
+      recordChange(transaction, { entity: "user", entityId: uid, operation: "delete", scope: "global", actorId: actor.uid });
+      recordChange(transaction, { entity: "user", entityId: uid, operation: "delete", scope: "user", userId: uid, actorId: actor.uid });
+      recordAudit(transaction, actor.uid, "user.delete", uid);
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+

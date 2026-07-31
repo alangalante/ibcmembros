@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { enablePushNotifications } from "@/lib/firebase/messaging";
 import { useAuth } from "./auth-provider";
 import { useOfflineData } from "./offline-data-provider";
@@ -8,11 +8,17 @@ import { getCleanDisplayName } from "@/lib/phone-auth";
 import Link from "next/link";
 import { NavHeader } from "./nav-header";
 
-
 export function Dashboard() {
   const { user } = useAuth();
   const offline = useOfflineData();
   const [pushStatus, setPushStatus] = useState("");
+  const [pushActivated, setPushActivated] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      setPushActivated(true);
+    }
+  }, []);
 
   if (!user) return null;
   const profile = offline.users.find((item) => item.id === user.uid);
@@ -21,8 +27,14 @@ export function Dashboard() {
   const displayName = getCleanDisplayName(profile?.name, user);
 
   async function activatePush() {
-    try { setPushStatus("Ativando…"); await enablePushNotifications(user!.uid); setPushStatus("Notificações ativadas"); }
-    catch (error) { setPushStatus(error instanceof Error ? error.message : "Falha ao ativar"); }
+    try {
+      setPushStatus("Ativando…");
+      await enablePushNotifications(user!.uid);
+      setPushStatus("Notificações ativadas com sucesso!");
+      setTimeout(() => setPushActivated(true), 1500);
+    } catch (error) {
+      setPushStatus(error instanceof Error ? error.message : "Falha ao ativar");
+    }
   }
 
   return (
@@ -36,14 +48,16 @@ export function Dashboard() {
           </button>
         </div>
 
-        <section className="mt-6 rounded-2xl bg-emerald-800 p-5 text-white shadow-xs">
-          <p className="font-semibold">Não perca nenhuma celebração</p>
-          <p className="mt-1 text-xs text-emerald-100">Receba avisos de aniversários e eventos dos seus grupos.</p>
-          <button onClick={activatePush} className="mt-4 rounded-xl bg-white px-4 py-2 text-xs font-bold text-emerald-950 shadow-sm active:bg-slate-100">
-            Ativar notificações
-          </button>
-          {pushStatus && <p className="mt-2 text-xs text-emerald-200">{pushStatus}</p>}
-        </section>
+        {!pushActivated && (
+          <section className="mt-6 rounded-2xl bg-emerald-800 p-5 text-white shadow-xs">
+            <p className="font-semibold">Não perca nenhuma celebração</p>
+            <p className="mt-1 text-xs text-emerald-100">Receba avisos de aniversários e eventos dos seus grupos.</p>
+            <button onClick={activatePush} className="mt-4 rounded-xl bg-white px-4 py-2 text-xs font-bold text-emerald-950 shadow-sm active:bg-slate-100">
+              Ativar notificações
+            </button>
+            {pushStatus && <p className="mt-2 text-xs text-emerald-200 font-medium">{pushStatus}</p>}
+          </section>
+        )}
 
         <section className="mt-7">
           <h2 className="text-lg font-bold">Meus grupos</h2>
@@ -89,4 +103,3 @@ export function Dashboard() {
     </div>
   );
 }
-

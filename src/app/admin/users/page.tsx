@@ -1,9 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+
 import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
+import { PhotoUpload } from "@/components/photo-upload";
+
 
 type PersonFilter = "all" | "member" | "visitor" | "inactive";
 
@@ -47,13 +51,17 @@ export default function AdminUsersPage() {
     role: "common" as "admin" | "leader" | "common",
     type: "member" as "member" | "visitor",
     active: true,
+    photoUrl: null as string | null,
+    photoPublicId: null as string | null,
     birthDate: "",
     conversionDate: "",
     conversionReason: "",
   });
   const [editError, setEditError] = useState("");
   const [editLoading, setEditLoading] = useState(false);
+  const [idToken, setIdToken] = useState("");
   const [fetchingPrivate, setFetchingPrivate] = useState(false);
+
 
   if (!isAdmin) {
     return (
@@ -129,19 +137,23 @@ export default function AdminUsersPage() {
     const publicProfile = offline.users.find((u) => u.id === uid);
     if (!publicProfile) return;
 
+    const token = await user?.getIdToken();
+    if (token) setIdToken(token);
+
     setEditForm({
       name: publicProfile.name,
       phoneE164: publicProfile.phoneE164,
       role: publicProfile.role,
       type: publicProfile.type,
       active: publicProfile.active,
+      photoUrl: publicProfile.photoUrl ?? null,
+      photoPublicId: publicProfile.photoPublicId ?? null,
       birthDate: "",
       conversionDate: "",
       conversionReason: "",
     });
 
     try {
-      const token = await user?.getIdToken();
       const res = await fetch(`/api/admin/users/${uid}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -185,6 +197,8 @@ export default function AdminUsersPage() {
             role: editForm.role,
             type: editForm.type,
             active: editForm.active,
+            photoUrl: editForm.photoUrl,
+            photoPublicId: editForm.photoPublicId,
           },
           private: {
             ...(editForm.birthDate ? { birthDate: editForm.birthDate } : {}),
@@ -205,6 +219,7 @@ export default function AdminUsersPage() {
       setEditLoading(false);
     }
   }
+
 
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
@@ -265,10 +280,21 @@ export default function AdminUsersPage() {
                 className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3.5 shadow-xs cursor-pointer hover:border-emerald-300 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="grid size-10 place-items-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-sm">
-                    {item.name.substring(0, 2).toUpperCase()}
-                  </div>
+                  {item.photoUrl ? (
+                    <Image
+                      src={item.photoUrl}
+                      alt={item.name}
+                      width={40}
+                      height={40}
+                      className="size-10 rounded-full object-cover border border-slate-200"
+                    />
+                  ) : (
+                    <div className="grid size-10 place-items-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-sm">
+                      {item.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
                   <div>
+
                     <h3 className="font-semibold text-sm text-slate-900">{item.name}</h3>
                     <p className="text-xs text-slate-500">{item.phoneE164}</p>
                     <div className="mt-1 flex gap-1">
@@ -417,8 +443,22 @@ export default function AdminUsersPage() {
             {editError && <p className="mt-2 text-xs font-semibold text-rose-700">{editError}</p>}
 
             <form onSubmit={handleEdit} className="mt-4 space-y-3">
+              <div className="flex justify-center pb-2">
+                <PhotoUpload
+                  currentPhotoUrl={editForm.photoUrl}
+                  idToken={idToken}
+                  onPhotoUploaded={(url, publicId) =>
+                    setEditForm((prev) => ({ ...prev, photoUrl: url, photoPublicId: publicId }))
+                  }
+                  onPhotoCleared={() =>
+                    setEditForm((prev) => ({ ...prev, photoUrl: null, photoPublicId: null }))
+                  }
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700">Nome</label>
+
                 <input
                   type="text"
                   required

@@ -451,33 +451,19 @@ Políticas planejadas:
 - limpeza completa ao sair ou trocar de conta;
 - expiração de segurança quando não for possível validar permissões.
 
-## 10. Cloudinary
+## 10. Cloudinary (Implementado)
 
-O Firebase Storage não será usado.
+O Firebase Storage foi completamente substituído pela integração com o Cloudinary.
 
-Variáveis preparadas:
+Implementado:
 
-```text
-NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-CLOUDINARY_API_KEY
-CLOUDINARY_API_SECRET
-```
+- Rota de assinatura segura no servidor: `POST /api/cloudinary/sign` (`src/app/api/cloudinary/sign/route.ts`);
+- Redimensionamento e compressão automática no navegador para formato **WebP (400x400px)** via HTML Canvas (`src/lib/image.ts`);
+- Upload direto assinado do navegador para o Cloudinary (sem consumo de banda do servidor);
+- Componente reusável `<PhotoUpload />` (`src/components/photo-upload.tsx`) com preview local e remoção de imagem;
+- Atualização e persistência dos campos `photoUrl` e `photoPublicId` no perfil do usuário via API transacional;
+- Renderização de avatares com fotos em `/birthdays` e `/admin/users`.
 
-Pendente:
-
-- criar/configurar a conta real;
-- rota de assinatura;
-- autorização de admin ou proprietário;
-- compressão para WebP;
-- redimensionamento para aproximadamente 400x400;
-- upload direto assinado;
-- `photoUrl` e `photoPublicId`;
-- URLs imutáveis e versionadas;
-- substituição e exclusão segura;
-- cache `CacheFirst`;
-- migração das fotos legadas.
-
-Meta recomendada: 100–300 KB por foto após compressão.
 
 ## 11. Aniversários
 

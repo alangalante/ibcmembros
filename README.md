@@ -30,6 +30,12 @@ PWA Next.js na Vercel
 
 O documento de grupo mantém `leaderIds` e `participantIds`, como pedido. Também há `groupMemberships/{groupId_userId}` e a projeção `users.groupIds`. Essa pequena duplicação é intencional: facilita auditoria, consultas segmentadas e RBAC sem fazer varreduras caras. Toda alteração de vínculo deve atualizar os três locais em uma transação no backend.
 
+### Sincronização offline-first
+
+Após o primeiro acesso, perfis públicos, grupos permitidos e eventos futuros ficam no IndexedDB `ibc-cache-{uid}`. A abertura seguinte renderiza esses dados antes da rede. O cliente consulta apenas `/api/sync/manifest`; se as versões forem iguais, nenhuma coleção é relida. Quando há mudança, `/api/sync/pull` entrega somente os documentos citados no log `changes`. Se o `schemaVersion` mudar ou o lote incremental ultrapassar o limite seguro, o servidor solicita um snapshot completo.
+
+As fotos usam Cache Storage separado por UID e estratégia Cache First. URLs versionadas do Cloudinary fazem uma foto nova ter uma chave nova sem revalidar as anteriores. No logout, IndexedDB, cache de imagens e token FCM do aparelho são removidos.
+
 ## Modelo Firestore
 
 ### `users/{authUid}`
@@ -73,6 +79,10 @@ Token FCM por navegador: `{ token, platform: "web", enabled, updatedAt }`.
 
 `{ title, description, startsAt, eventDate, timezone, scope, groupIds[], createdBy, createdAt, updatedAt }`. Em evento global, `groupIds` é vazio. `eventDate` é a data em `America/Sao_Paulo`, usada pelo cron.
 
+### `sync/{scope}` e `changes/{changeId}`
+
+`sync/global`, `sync/group_{groupId}` e `sync/user_{uid}` guardam versões opacas. `changes` registra entidade, operação, escopo e instante da alteração. Os clientes não leem o log diretamente: a API filtra os registros pelos grupos e pelo usuário autenticado.
+
 ## RBAC aplicado
 
 - Admin: CRUD de usuários, grupos, vínculos e eventos.
@@ -94,6 +104,8 @@ As regras ficam em [firestore.rules](./firestore.rules). O Admin SDK usado pelas
 6. Gere um segredo longo (`openssl rand -hex 32`) para `CRON_SECRET`.
 7. Copie `.firebaserc.example` para `.firebaserc`, informe o project ID e rode `npm run firebase:deploy`.
 8. Rode `npm run dev`. Para Rules localmente, use `npm run firebase:emulators`.
+
+Para executar os testes de privacidade das Rules: `npm run test:rules`.
 
 ## Primeiro administrador
 

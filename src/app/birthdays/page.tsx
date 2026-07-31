@@ -2,27 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { db } from "@/lib/firebase/client";
-import type { UserProfile } from "@/types/domain";
-
-type Birthday = UserProfile & { id: string };
+import { useOfflineData } from "@/components/offline-data-provider";
 
 export default function BirthdaysPage() {
   const { user, loading } = useAuth();
-  const [people, setPeople] = useState<Birthday[]>([]);
-  const [fetching, setFetching] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", month: "2-digit", day: "2-digit" }).formatToParts();
-    const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-    getDocs(query(collection(db, "users"), where("active", "==", true), where("birthMonthDay", "==", `${value("month")}-${value("day")}`)))
-      .then((snapshot) => setPeople(snapshot.docs.map((item) => ({ id: item.id, ...item.data() } as Birthday))))
-      .finally(() => setFetching(false));
-  }, [user]);
+  const offline = useOfflineData();
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", month: "2-digit", day: "2-digit" }).formatToParts();
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const people = offline.users.filter((person) => person.active && person.birthMonthDay === `${value("month")}-${value("day")}`);
 
   if (loading) return <main className="grid min-h-dvh place-items-center">Carregando…</main>;
   if (!user) return <main className="mx-auto max-w-lg p-6"><p>Entre no aplicativo para ver os aniversariantes.</p><Link href="/" className="mt-4 inline-block font-semibold text-emerald-800">Ir para o login</Link></main>;
@@ -32,8 +20,8 @@ export default function BirthdaysPage() {
     <h1 className="mt-5 text-2xl font-bold">Aniversariantes de hoje 🎉</h1>
     <p className="mt-1 text-sm text-slate-600">Apenas o dia e o mês são compartilhados.</p>
     <div className="mt-6 space-y-3">
-      {fetching && <p className="text-sm text-slate-500">Consultando…</p>}
-      {!fetching && !people.length && <p className="rounded-2xl bg-white p-5 text-sm text-slate-500">Nenhum aniversariante hoje.</p>}
+      {(offline.status === "loading-cache" || offline.status === "syncing") && !people.length && <p className="text-sm text-slate-500">Carregando dados locais…</p>}
+      {offline.status !== "loading-cache" && !people.length && <p className="rounded-2xl bg-white p-5 text-sm text-slate-500">Nenhum aniversariante hoje.</p>}
       {people.map((person) => {
         const phone = person.phoneE164.replace(/\D/g, "");
         return <article key={person.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">

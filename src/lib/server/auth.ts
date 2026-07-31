@@ -6,7 +6,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-export type AuthenticatedActor = { uid: string; role: AccessRole; active: boolean };
+export type AuthenticatedActor = { uid: string; role: AccessRole; active: boolean; groupIds: string[] };
 
 export async function authenticate(request: NextRequest): Promise<AuthenticatedActor> {
   const authorization = request.headers.get("authorization");
@@ -18,7 +18,7 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedA
 
   const profile = await adminDb.collection("users").doc(decoded.uid).get();
   if (!profile.exists || profile.get("active") !== true) throw new ApiError(403, "Usuário inativo ou sem perfil");
-  return { uid: decoded.uid, role: profile.get("role") as AccessRole, active: true };
+  return { uid: decoded.uid, role: profile.get("role") as AccessRole, active: true, groupIds: (profile.get("groupIds") ?? []) as string[] };
 }
 
 export function requireAdmin(actor: AuthenticatedActor) {

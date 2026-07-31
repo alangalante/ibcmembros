@@ -19,8 +19,7 @@ function serialize(snapshot: FirebaseFirestore.DocumentSnapshot) {
 export async function GET(request: NextRequest) {
   try {
     const actor = await authenticate(request);
-    const profile = await adminDb.collection("users").doc(actor.uid).get();
-    const groupIds = (profile.get("groupIds") ?? []) as string[];
+    const groupIds = actor.groupIds;
     const [globalSync, userSync, ...groupSyncs] = await Promise.all([
       adminDb.collection("sync").doc("global").get(),
       adminDb.collection("sync").doc(`user_${actor.uid}`).get(),

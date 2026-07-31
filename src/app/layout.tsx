@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
+import { OfflineDataProvider } from "@/components/offline-data-provider";
+import { PwaRegister } from "@/components/pwa-register";
 
 export const metadata: Metadata = {
   title: "IBC Membros",
@@ -12,5 +14,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#176b4d", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="pt-BR"><body className="min-h-dvh antialiased"><AuthProvider>{children}</AuthProvider></body></html>;
+  return <html lang="pt-BR"><body className="min-h-dvh antialiased"><AuthProvider><PwaRegister /><OfflineDataProvider>{children}</OfflineDataProvider></AuthProvider></body></html>;
 }

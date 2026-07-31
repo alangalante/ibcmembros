@@ -4,6 +4,7 @@ import { useState } from "react";
 import { enablePushNotifications } from "@/lib/firebase/messaging";
 import { useAuth } from "./auth-provider";
 import { useOfflineData } from "./offline-data-provider";
+import { getCleanDisplayName } from "@/lib/phone-auth";
 import Link from "next/link";
 import { NavHeader } from "./nav-header";
 
@@ -17,6 +18,7 @@ export function Dashboard() {
   const profile = offline.users.find((item) => item.id === user.uid);
   const groups = offline.groups.filter((item) => profile?.groupIds.includes(item.id));
   const events = offline.events.slice().sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const displayName = getCleanDisplayName(profile?.name, user);
 
   async function activatePush() {
     try { setPushStatus("Ativando…"); await enablePushNotifications(user!.uid); setPushStatus("Notificações ativadas"); }
@@ -28,7 +30,7 @@ export function Dashboard() {
       <NavHeader />
       <main className="mx-auto max-w-lg px-4 pt-6">
         <div className="flex items-center justify-between">
-          <div><p className="text-xs text-emerald-800 font-semibold">Bem-vindo(a),</p><h1 className="text-2xl font-bold">{profile?.name ?? user.email}</h1></div>
+          <div><p className="text-xs text-emerald-800 font-semibold">Bem-vindo(a),</p><h1 className="text-2xl font-bold">{displayName}</h1></div>
           <button onClick={offline.refresh} className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800 shadow-2xs">
             {offline.status === "syncing" ? "Sincronizando…" : "Atualizar"}
           </button>

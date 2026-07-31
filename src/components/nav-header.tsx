@@ -1,11 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { disablePushNotifications } from "@/lib/firebase/messaging";
 import { deleteUserCache } from "@/lib/offline/db";
+import { getCleanDisplayName } from "@/lib/phone-auth";
 import { useAuth } from "./auth-provider";
 import { useOfflineData } from "./offline-data-provider";
 
@@ -19,6 +21,8 @@ export function NavHeader() {
   const isAdmin = profile?.role === "admin";
   const isLeader = profile?.role === "leader";
   const canManageEvents = isAdmin || isLeader;
+
+  const displayName = getCleanDisplayName(profile?.name, user);
 
   async function logout() {
     try { await disablePushNotifications(user!.uid); } catch { /* Ignora se estiver offline */ }
@@ -38,13 +42,17 @@ export function NavHeader() {
     <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-white/95 backdrop-blur-md">
       <div className="mx-auto max-w-lg px-4 py-3">
         <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="grid size-8 place-items-center rounded-xl bg-emerald-800 font-bold text-white shadow-sm">
-              ✝
-            </div>
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/logo.jpg"
+              alt="Logo IBC"
+              width={36}
+              height={36}
+              className="size-9 rounded-xl object-cover shadow-2xs border border-emerald-900/15"
+            />
             <div>
-              <p className="text-xs font-semibold leading-none text-emerald-950">IBC Membros</p>
-              <p className="text-[10px] text-emerald-700">{profile?.name ?? user.email}</p>
+              <p className="text-xs font-bold leading-none text-emerald-950">IBC Membros</p>
+              <p className="mt-0.5 text-[10px] font-semibold text-emerald-700">{displayName}</p>
             </div>
           </Link>
           <div className="flex items-center gap-2">
@@ -67,7 +75,7 @@ export function NavHeader() {
                 href={item.href}
                 className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                   active
-                    ? "bg-emerald-800 text-white shadow-xs"
+                    ? "bg-emerald-800 text-white shadow-2xs"
                     : "text-slate-600 hover:bg-slate-100 active:bg-slate-200"
                 }`}
               >

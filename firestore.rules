@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function roleIs(role) { return signedIn() && me().data.active == true && me().data.role == role; }
+    function isAdmin() { return roleIs('admin'); }
+    function isLeaderOf(groupId) {
+      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.leaderIds;
+    }
+    function validRole(role) { return role in ['admin', 'leader', 'common']; }
+    function validType(type) { return type in ['member', 'visitor']; }
+
+    match /users/{userId} {
+      // Não há data/ano de nascimento neste documento. Consultas comuns devem
+      // incluir where('active', '==', true), pois Rules não são filtros.
+      allow get: if signedIn() && (resource.data.active == true || request.auth.uid == userId || isAdmin());
+      allow list: if signedIn() && (resource.data.active == true || isAdmin());
+      // Escritas passam pelas APIs transacionais para atualizar versões/auditoria.
+      allow create, update, delete: if false;
+
+      match /devices/{deviceId} {
+        allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /userPrivate/{userId} {
+      // Ano de nascimento e conversão nunca ficam acessíveis a líder/comum.
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /groups/{groupId} {
+      allow get, list: if signedIn() && (isAdmin() || request.auth.uid in resource.data.participantIds);
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (isLeaderOf(groupId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantIds', 'updatedAt'])
+        && request.resource.data.leaderIds == resource.data.leaderIds);
+    }
+
+    match /groupMemberships/{membershipId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid || isLeaderOf(resource.data.groupId));
+      allow write: if isAdmin();
+    }
+
+    match /sync/{scopeId} {
+      allow read: if signedIn() && (
+        scopeId == 'global'
+        || scopeId == 'user_' + request.auth.uid
+        || isAdmin()
+        || (scopeId.matches('group_.*') && request.auth.uid in resource.data.participantIds)
+      );
+      allow write: if false;
+    }
+
+    match /changes/{changeId} {
+      // Servidos pela API de sync após filtragem de escopo.
+      allow read, write: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.scope == 'global'
+        || resource.data.groupIds.hasAny(me().data.groupIds));
+      allow create: if isAdmin() || (roleIs('leader')
+        && request.resource.data.scope == 'groups'
+        && request.resource.data.groupIds.size() == 1
+        && isLeaderOf(request.resource.data.groupIds[0])
+        && request.resource.data.createdBy == request.auth.uid);
+      allow update, delete: if isAdmin() || (roleIs('leader')
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.scope == 'groups'
+        && request.resource.data.groupIds == resource.data.groupIds
+        && request.resource.data.groupIds.size() == 1
+        && isLeaderOf(request.resource.data.groupIds[0]));
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

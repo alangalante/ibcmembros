@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+.firebase/
+firebase-debug.log
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Fontes legadas locais contêm dados pessoais e nunca devem ir ao GitHub.
+membros_rows.csv
+docs/Database.md

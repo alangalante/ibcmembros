@@ -29,8 +29,10 @@ export default function AdminGroupsPage() {
   const [isLeaderRoleCheck, setIsLeaderRoleCheck] = useState(false);
   const [memberAddLoading, setMemberAddLoading] = useState(false);
   const [memberAddError, setMemberAddError] = useState("");
+  const [basicUpdateSuccess, setBasicUpdateSuccess] = useState(false);
 
   if (!isAdmin) {
+
     return (
       <div className="min-h-dvh bg-slate-50 text-slate-900">
         <NavHeader />
@@ -83,9 +85,11 @@ export default function AdminGroupsPage() {
   }
 
   async function handleEditGroup(e: React.FormEvent) {
+
     e.preventDefault();
     if (!editingGroupId) return;
     setEditError("");
+    setBasicUpdateSuccess(false);
     setEditLoading(true);
 
     try {
@@ -102,7 +106,8 @@ export default function AdminGroupsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar grupo");
 
-      setEditingGroupId(null);
+      setBasicUpdateSuccess(true);
+      setTimeout(() => setBasicUpdateSuccess(false), 3000);
       await offline.refresh();
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Falha ao salvar grupo");
@@ -110,6 +115,7 @@ export default function AdminGroupsPage() {
       setEditLoading(false);
     }
   }
+
 
   async function handleAddMemberToGroup(e: React.FormEvent) {
     e.preventDefault();
@@ -275,7 +281,13 @@ export default function AdminGroupsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
             <h2 className="text-lg font-bold">Editar Grupo: {editingGroup.name}</h2>
+            {basicUpdateSuccess && (
+              <p className="mt-2 text-xs font-bold text-emerald-700 bg-emerald-50 p-2 rounded-xl border border-emerald-200">
+                ✓ Dados do grupo atualizados com sucesso!
+              </p>
+            )}
             {editError && <p className="mt-2 text-xs font-semibold text-rose-700">{editError}</p>}
+
 
             <form onSubmit={handleEditGroup} className="mt-4 space-y-3">
               <div>

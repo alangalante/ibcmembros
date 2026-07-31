@@ -58,7 +58,13 @@ export const groupSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const groupPatchSchema = groupSchema.partial();
+export const groupPatchSchema = z.object({
+  name: z.string().trim().min(2, "Nome do grupo é obrigatório").max(100).optional(),
+  description: z.string().trim().max(500).optional(),
+  leaderIds: z.array(z.string()).optional(),
+  participantIds: z.array(z.string()).optional(),
+  active: z.boolean().optional(),
+});
 
 export const eventSchema = z.object({
   title: z.string().trim().min(2, "Título é obrigatório").max(150),
@@ -69,5 +75,11 @@ export const eventSchema = z.object({
   groupIds: z.array(z.string()).default([]),
 });
 
-export const eventPatchSchema = eventSchema.partial();
-
+export const eventPatchSchema = z.object({
+  title: z.string().trim().min(2, "Título é obrigatório").max(150).optional(),
+  description: z.string().trim().max(1000).optional(),
+  startsAtIso: z.string().datetime({ offset: true }).or(z.iso.date()).optional(),
+  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve ser no formato YYYY-MM-DD").optional(),
+  scope: z.enum(["global", "groups"]).optional(),
+  groupIds: z.array(z.string()).optional(),
+});

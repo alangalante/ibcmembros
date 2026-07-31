@@ -12,3 +12,5 @@ firebase-debug.log
 # Fontes legadas locais contêm dados pessoais e nunca devem ir ao GitHub.
 membros_rows.csv
 docs/Database.md
+service-account.json
+

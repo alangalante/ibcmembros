@@ -12,7 +12,9 @@ function credential() {
     : applicationDefault();
 }
 
-const adminApp = getApps()[0] ?? initializeApp({ credential: credential() });
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "ibc-membros";
+const adminApp = getApps()[0] ?? initializeApp({ credential: credential(), projectId });
+
 
 export const adminAuth = getAuth(adminApp);
 export const adminDb = getFirestore(adminApp);

@@ -4,6 +4,8 @@ import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { adminCreateUserSchema } from "@/lib/validation";
 import { ApiError, authenticate, errorResponse, requireAdmin } from "@/lib/server/auth";
 import { recordAudit, recordChange } from "@/lib/server/sync";
+import { phoneToInternalEmail } from "@/lib/phone-auth";
+
 
 export const runtime = "nodejs";
 
@@ -20,11 +22,12 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name, phoneE164, birthDate, role, type, conversionDate, conversionReason } = parsed.data;
 
+    const authEmail = email || phoneToInternalEmail(phoneE164);
     let targetUid: string;
 
-    if (email && password) {
+    if (password) {
       const userRecord = await adminAuth.createUser({
-        email,
+        email: authEmail,
         password,
         displayName: name,
         disabled: false,
@@ -33,6 +36,8 @@ export async function POST(request: NextRequest) {
     } else {
       targetUid = adminDb.collection("users").doc().id;
     }
+
+
 
     const birthMonthDay = birthDate.slice(5); // YYYY-MM-DD -> MM-DD
     const nameSearch = name.toLocaleLowerCase("pt-BR");

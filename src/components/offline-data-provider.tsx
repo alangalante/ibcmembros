@@ -57,13 +57,19 @@ export function OfflineDataProvider({ children }: { children: React.ReactNode })
     if (!user) { setUsers([]); setGroups([]); setEvents([]); setStatus("idle"); return; }
     let cancelled = false;
     setStatus("loading-cache");
-    openUserCache(user.uid).then(async (database) => {
-      if (!cancelled) await load(database);
-      database.close();
-      if (!cancelled) await refresh();
-    });
+    openUserCache(user.uid)
+      .then(async (database) => {
+        if (!cancelled) await load(database);
+        database.close();
+        if (!cancelled) await refresh();
+      })
+      .catch((err) => {
+        console.warn("Falha ao abrir IndexedDB local:", err);
+        if (!cancelled) setStatus("offline");
+      });
     return () => { cancelled = true; };
   }, [load, refresh, user]);
+
 
   return <OfflineDataContext.Provider value={{ users, groups, events, status, refresh }}>{children}</OfflineDataContext.Provider>;
 }

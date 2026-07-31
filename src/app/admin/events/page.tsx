@@ -112,7 +112,7 @@ export default function AdminEventsPage() {
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
       <NavHeader />
-      <main className="mx-auto max-w-lg px-4 pt-6">
+      <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Gestão de Eventos</h1>
@@ -127,7 +127,8 @@ export default function AdminEventsPage() {
         </div>
 
         {/* Lista de Eventos */}
-        <div className="mt-6 space-y-3">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
           {events.length ? (
             events.map((ev) => (
               <article key={ev.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-xs">

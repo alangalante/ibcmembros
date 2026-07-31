@@ -45,7 +45,7 @@ export function Dashboard() {
     <PullToRefresh onRefresh={offline.refresh}>
       <div className="min-h-dvh bg-slate-50 text-slate-900 pb-24">
         <NavHeader />
-        <main className="mx-auto max-w-lg px-4 pt-4">
+        <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-4">
           {!pushActivated && (
             <section className="mt-2 rounded-2xl bg-emerald-800 p-5 text-white shadow-xs">
               <p className="font-semibold">Não perca nenhuma celebração</p>
@@ -59,7 +59,7 @@ export function Dashboard() {
 
           <section className="mt-5">
             <h2 className="text-lg font-bold text-slate-900">Meus grupos</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {groups.length ? (
                 groups.map((group) => (
                   <article key={group.id} className="rounded-2xl bg-white p-4 shadow-2xs border border-slate-100">
@@ -69,7 +69,7 @@ export function Dashboard() {
                   </article>
                 ))
               ) : (
-                <p className="col-span-2 text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">
+                <p className="col-span-full text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">
                   Nenhum grupo vinculado ao seu perfil no momento.
                 </p>
               )}
@@ -78,7 +78,7 @@ export function Dashboard() {
 
           <section className="mt-7">
             <h2 className="text-lg font-bold text-slate-900">Próximos eventos</h2>
-            <div className="mt-3 space-y-3">
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {events.length ? (
                 events.map((event) => (
                   <article key={event.id} className="rounded-2xl bg-white p-4 shadow-2xs border border-slate-100">
@@ -95,13 +95,14 @@ export function Dashboard() {
                   </article>
                 ))
               ) : (
-                <p className="text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">
+                <p className="col-span-full text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">
                   Nenhum evento agendado no momento.
                 </p>
               )}
             </div>
           </section>
         </main>
+
       </div>
     </PullToRefresh>
   );

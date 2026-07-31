@@ -20,10 +20,11 @@ export default function BirthdaysPage() {
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
       <NavHeader />
-      <main className="mx-auto max-w-lg px-4 pt-6">
+      <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-6">
         <h1 className="text-2xl font-bold">Aniversariantes de hoje 🎉</h1>
         <p className="mt-1 text-xs text-slate-500">Privacidade preservada: apenas o dia e o mês são compartilhados.</p>
-        <div className="mt-6 space-y-3">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
           {(offline.status === "loading-cache" || offline.status === "syncing") && !people.length && <p className="text-sm text-slate-500">Carregando dados locais…</p>}
           {offline.status !== "loading-cache" && !people.length && <p className="rounded-2xl bg-white p-5 text-sm text-slate-500">Nenhum aniversariante hoje.</p>}
           {people.map((person) => {

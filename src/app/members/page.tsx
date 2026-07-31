@@ -245,7 +245,7 @@ export default function MembersDirectoryPage() {
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
       <NavHeader />
-      <main className="mx-auto max-w-lg px-4 pt-6">
+      <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Membros da Igreja</h1>
@@ -294,7 +294,8 @@ export default function MembersDirectoryPage() {
         </div>
 
         {/* Lista de Membros */}
-        <div className="mt-4 space-y-2.5">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+
           {filteredUsers.length ? (
             filteredUsers.map((item) => (
               <article

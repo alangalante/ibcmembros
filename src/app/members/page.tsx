@@ -65,18 +65,22 @@ export default function MembersDirectoryPage() {
   const [fetchingPrivate, setFetchingPrivate] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const filteredUsers = offline.users.filter((item) => {
-    const cleanSearch = search.toLowerCase().trim();
-    const matchesSearch =
-      item.name.toLowerCase().includes(cleanSearch) ||
-      item.phoneE164.includes(cleanSearch);
+  const filteredUsers = offline.users
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .filter((item) => {
+      const cleanSearch = search.toLowerCase().trim();
+      const matchesSearch =
+        item.name.toLowerCase().includes(cleanSearch) ||
+        item.phoneE164.includes(cleanSearch);
 
-    if (!matchesSearch) return false;
-    if (filter === "member") return item.type === "member" && item.active;
-    if (filter === "visitor") return item.type === "visitor" && item.active;
-    if (filter === "inactive") return !item.active;
-    return true;
-  });
+      if (!matchesSearch) return false;
+      if (filter === "member") return item.type === "member" && item.active;
+      if (filter === "visitor") return item.type === "visitor" && item.active;
+      if (filter === "inactive") return !item.active;
+      return true;
+    });
+
 
   const viewingUser = offline.users.find((u) => u.id === viewingUid);
   const viewingGroups = viewingUser

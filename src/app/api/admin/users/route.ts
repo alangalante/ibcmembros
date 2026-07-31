@@ -22,8 +22,14 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name, phoneE164, birthDate, role, type, conversionDate, conversionReason } = parsed.data;
 
+    const existing = await adminDb.collection("users").where("phoneE164", "==", phoneE164).get();
+    if (!existing.empty) {
+      throw new ApiError(400, "Já existe um cadastro com este telefone.");
+    }
+
     const authEmail = email || phoneToInternalEmail(phoneE164);
     let targetUid: string;
+
 
     if (password) {
       const userRecord = await adminAuth.createUser({

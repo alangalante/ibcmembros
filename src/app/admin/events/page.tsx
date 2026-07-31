@@ -38,7 +38,11 @@ export default function AdminEventsPage() {
     );
   }
 
-  const events = offline.events.slice().sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const userGroupIds = currentUser?.groupIds || [];
+  const events = offline.events
+    .filter((ev) => isAdmin || ev.scope === "global" || (ev.groupIds || []).some((gId) => userGroupIds.includes(gId)))
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
 
   async function handleCreateEvent(e: React.FormEvent) {
     e.preventDefault();

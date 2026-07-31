@@ -23,7 +23,12 @@ export function Dashboard() {
   if (!user) return null;
   const profile = offline.users.find((item) => item.id === user.uid);
   const groups = offline.groups.filter((item) => profile?.groupIds.includes(item.id));
-  const events = offline.events.slice().sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const userGroupIds = profile?.groupIds || [];
+  const events = offline.events
+    .filter((ev) => ev.scope === "global" || (ev.groupIds || []).some((gId) => userGroupIds.includes(gId)))
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+
 
   async function activatePush() {
     try {

@@ -342,33 +342,35 @@ export default function AdminGroupsPage() {
               </h3>
               <div className="mt-2.5 space-y-2 max-h-48 overflow-y-auto pr-1">
                 {editingGroup.participantIds.length ? (
-                  editingGroup.participantIds.map((memberId) => {
-                    const member = offline.users.find((u) => u.id === memberId);
-                    const isLeader = editingGroup.leaderIds.includes(memberId);
-                    if (!member) return null;
-                    return (
-                      <div key={memberId} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="grid size-8 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800 shadow-2xs">
-                            {member.name.substring(0, 2).toUpperCase()}
+                  editingGroup.participantIds
+                    .map((memberId) => offline.users.find((u) => u.id === memberId))
+                    .filter((u): u is NonNullable<typeof u> => Boolean(u))
+                    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+                    .map((member) => {
+                      const isLeader = editingGroup.leaderIds.includes(member.id);
+                      return (
+                        <div key={member.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                          <div className="flex items-center gap-2.5">
+                            <div className="grid size-8 place-items-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800 shadow-2xs">
+                              {member.name.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">{member.name}</p>
+                              <span className={`text-[10px] font-bold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
+                                {isLeader ? "⭐ Líder do Grupo" : "Membro"}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">{member.name}</p>
-                            <span className={`text-[10px] font-bold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
-                              {isLeader ? "⭐ Líder do Grupo" : "Membro"}
-                            </span>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMemberFromGroup(member.id)}
+                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                          >
+                            Desvincular
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveMemberFromGroup(memberId)}
-                          className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
-                        >
-                          Desvincular
-                        </button>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 ) : (
                   <p className="text-xs text-slate-400 italic">Nenhum participante vinculado ainda.</p>
                 )}
@@ -390,12 +392,14 @@ export default function AdminGroupsPage() {
                   <option value="">Selecione uma pessoa para vincular…</option>
                   {offline.users
                     .filter((u) => !editingGroup.participantIds.includes(u.id))
+                    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
                     .map((u) => (
                       <option key={u.id} value={u.id}>
                         {u.name} ({u.type === "member" ? "Membro" : "Visitante"})
                       </option>
                     ))}
                 </select>
+
 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">

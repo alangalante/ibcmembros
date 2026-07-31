@@ -8,8 +8,7 @@ service cloud.firestore {
     function isLeaderOf(groupId) {
       return signedIn() && request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.leaderIds;
     }
-    function validRole(role) { return role in ['admin', 'leader', 'common']; }
-    function validType(type) { return type in ['member', 'visitor']; }
+
 
     match /users/{userId} {
       // Não há data/ano de nascimento neste documento. Consultas comuns devem

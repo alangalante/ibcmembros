@@ -32,15 +32,13 @@ service cloud.firestore {
 
     match /groups/{groupId} {
       allow get, list: if signedIn() && (isAdmin() || request.auth.uid in resource.data.participantIds);
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() || (isLeaderOf(groupId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantIds', 'updatedAt'])
-        && request.resource.data.leaderIds == resource.data.leaderIds);
+      // Mutações de grupo passam pelas APIs de servidor para manter histórico de versão e auditoria
+      allow create, update, delete: if false;
     }
 
     match /groupMemberships/{membershipId} {
       allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid || isLeaderOf(resource.data.groupId));
-      allow write: if isAdmin();
+      allow write: if false;
     }
 
     match /sync/{scopeId} {
@@ -66,18 +64,10 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if signedIn() && (isAdmin() || resource.data.scope == 'global'
         || resource.data.groupIds.hasAny(me().data.groupIds));
-      allow create: if isAdmin() || (roleIs('leader')
-        && request.resource.data.scope == 'groups'
-        && request.resource.data.groupIds.size() == 1
-        && isLeaderOf(request.resource.data.groupIds[0])
-        && request.resource.data.createdBy == request.auth.uid);
-      allow update, delete: if isAdmin() || (roleIs('leader')
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.scope == 'groups'
-        && request.resource.data.groupIds == resource.data.groupIds
-        && request.resource.data.groupIds.size() == 1
-        && isLeaderOf(request.resource.data.groupIds[0]));
+      // Mutações de eventos passam pelas APIs de servidor para versionamento
+      allow create, update, delete: if false;
     }
+
 
     match /{document=**} { allow read, write: if false; }
   }

@@ -40,4 +40,13 @@ describe("privacidade da data de nascimento", () => {
   it("nega escrita direta até mesmo para admin", async () => {
     await assertFails(setDoc(doc(environment.authenticatedContext("admin").firestore(), "userPrivate", "member"), { birthDate: "2000-01-01" }));
   });
+
+  it("nega escrita direta de grupos pelo cliente (forçando uso de API transacional)", async () => {
+    await assertFails(setDoc(doc(environment.authenticatedContext("admin").firestore(), "groups", "g1"), { name: "Grupo Teste" }));
+  });
+
+  it("nega escrita direta de eventos pelo cliente (forçando uso de API transacional)", async () => {
+    await assertFails(setDoc(doc(environment.authenticatedContext("admin").firestore(), "events", "e1"), { title: "Evento Teste" }));
+  });
 });
+

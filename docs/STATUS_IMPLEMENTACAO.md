@@ -57,26 +57,22 @@ Arquivos principais:
 
 Implementado:
 
-- manifesto;
-- metadados de instalação;
-- cores e ícones;
-- service worker inicial;
-- clique em notificações abrindo uma rota interna.
+- manifesto PWA;
+- metadados de instalação e ícones;
+- service worker com estratégia `StaleWhileRevalidate` para arquivos do App Shell (`ibc-app-shell-v1`);
+- estratégia `CacheFirst` isolada por UID para imagens do Cloudinary (`ibc-{uid}-images-v1`);
+- limpeza automática de versões de cache obsoletas no evento `activate`;
+- clique em notificações abrindo rotas internas e WhatsApp para aniversariantes.
 
 Arquivos:
 
 - `src/app/manifest.ts`
 - `src/app/layout.tsx`
 - `public/firebase-messaging-sw.js`
+- `src/components/pwa-register.tsx`
 - `public/icons/icon-192.svg`
 - `public/icons/icon-512.svg`
 
-Pendente:
-
-- cache completo do app shell;
-- tela offline;
-- políticas `CacheFirst`, `NetworkFirst` e `StaleWhileRevalidate`;
-- limpeza de versões antigas de imagens e arquivos estáticos.
 
 ### 3.3 Firebase
 
@@ -275,11 +271,14 @@ Papéis:
 - lê eventos dos seus grupos;
 - gerencia seus tokens FCM.
 
-### Pendência de segurança
+### Trava de Escrita Direta (Concluída)
 
-As Rules ainda permitem algumas escritas diretas de grupos, eventos e memberships. O objetivo é fazer todas as mutações relevantes passarem pelas APIs transacionais para garantir versão, consistência e auditoria. Depois disso, as escritas diretas restantes devem ser fechadas.
+Todas as escritas diretas nas coleções `users`, `userPrivate`, `groups`, `groupMemberships`, `events`, `sync`, `changes` e `auditLogs` foram travadas via cliente com `allow write: if false;` ou `allow create, update, delete: if false;`. 
+
+Qualquer mutação de dados é forçada a trafegar pelas APIs servidoras do Next.js utilizando o Firebase Admin SDK. Isso garante 100% de consistência de esquema, auditoria, versionamento e atualização dos cursores de sincronização offline.
 
 Arquivo: `firestore.rules`.
+
 
 ## 7. APIs implementadas
 

@@ -1,0 +1,278 @@
+"use client";
+
+import { useState } from "react";
+import { NavHeader } from "@/components/nav-header";
+import { useAuth } from "@/components/auth-provider";
+import { useOfflineData } from "@/components/offline-data-provider";
+
+export default function AdminEventsPage() {
+  const { user } = useAuth();
+  const offline = useOfflineData();
+
+  const currentUser = offline.users.find((u) => u.id === user?.uid);
+  const isAdmin = currentUser?.role === "admin";
+  const isLeader = currentUser?.role === "leader";
+  const canManage = isAdmin || isLeader;
+
+  // Modal Criar Evento
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    title: "",
+    description: "",
+    eventDate: "",
+    time: "19:00",
+    scope: "global" as "global" | "groups",
+    groupIds: [] as string[],
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState("");
+
+  if (!canManage) {
+    return (
+      <div className="min-h-dvh bg-slate-50 text-slate-900">
+        <NavHeader />
+        <main className="mx-auto max-w-lg p-6 text-center">
+          <p className="text-sm font-semibold text-rose-700">Acesso Restrito a Líderes e Administradores</p>
+        </main>
+      </div>
+    );
+  }
+
+  const events = offline.events.slice().sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+  async function handleCreateEvent(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateError("");
+    setCreateLoading(true);
+
+    try {
+      const token = await user?.getIdToken();
+      const startsAtIso = new Date(`${createForm.eventDate}T${createForm.time}:00-03:00`).toISOString();
+
+      const res = await fetch("/api/admin/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: createForm.title,
+          description: createForm.description,
+          eventDate: createForm.eventDate,
+          startsAtIso,
+          scope: createForm.scope,
+          groupIds: createForm.scope === "global" ? [] : createForm.groupIds,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao criar evento");
+
+      setShowCreateModal(false);
+      setCreateForm({
+        title: "",
+        description: "",
+        eventDate: "",
+        time: "19:00",
+        scope: "global",
+        groupIds: [],
+      });
+      await offline.refresh();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Falha ao cadastrar evento");
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
+  async function handleDeleteEvent(eventId: string) {
+    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
+
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao excluir evento");
+      }
+      await offline.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Falha ao excluir evento");
+    }
+  }
+
+  return (
+    <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
+      <NavHeader />
+      <main className="mx-auto max-w-lg px-4 pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Gestão de Eventos</h1>
+            <p className="text-xs text-slate-500">{events.length} eventos programados</p>
+          </div>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
+          >
+            + Novo Evento
+          </button>
+        </div>
+
+        {/* Lista de Eventos */}
+        <div className="mt-6 space-y-3">
+          {events.length ? (
+            events.map((ev) => (
+              <article key={ev.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${ev.scope === "global" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                    {ev.scope === "global" ? "Global" : "Restrito a Grupos"}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    {ev.eventDate.split("-").reverse().join("/")}
+                  </span>
+                </div>
+
+                <h3 className="mt-2 font-bold text-base text-slate-900">{ev.title}</h3>
+                <p className="mt-1 text-xs text-slate-600 line-clamp-2">{ev.description || "Sem descrição."}</p>
+
+                <div className="mt-3 flex items-center justify-between border-t border-slate-50 pt-2">
+                  <a href={`/events/${ev.id}`} className="text-xs font-semibold text-emerald-800 hover:underline">
+                    Ver detalhes →
+                  </a>
+                  {(isAdmin || ev.createdBy === user?.uid) && (
+                    <button
+                      onClick={() => handleDeleteEvent(ev.id)}
+                      className="text-xs font-semibold text-rose-600 hover:underline"
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500">
+              Nenhum evento programado.
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modal Criar Evento */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
+            <h2 className="text-lg font-bold">Novo Evento</h2>
+            {createError && <p className="mt-2 text-xs font-semibold text-rose-700">{createError}</p>}
+
+            <form onSubmit={handleCreateEvent} className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Título do Evento *</label>
+                <input
+                  type="text"
+                  required
+                  value={createForm.title}
+                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  placeholder="ex: Culto de Celebração"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700">Data *</label>
+                  <input
+                    type="date"
+                    required
+                    value={createForm.eventDate}
+                    onChange={(e) => setCreateForm({ ...createForm, eventDate: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700">Horário *</label>
+                  <input
+                    type="time"
+                    required
+                    value={createForm.time}
+                    onChange={(e) => setCreateForm({ ...createForm, time: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Descrição</label>
+                <textarea
+                  rows={3}
+                  value={createForm.description}
+                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  placeholder="Informações adicionais do evento…"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Alcance *</label>
+                <select
+                  value={createForm.scope}
+                  onChange={(e) => setCreateForm({ ...createForm, scope: e.target.value as "global" | "groups" })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  disabled={isLeader && !isAdmin} // Líderes só criam eventos para seus grupos
+                >
+                  {isAdmin && <option value="global">Global (Toda a igreja)</option>}
+                  <option value="groups">Restrito a Grupos Específicos</option>
+                </select>
+              </div>
+
+              {createForm.scope === "groups" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700">Selecione os Grupos *</label>
+                  <div className="mt-1 space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2">
+                    {offline.groups.map((g) => (
+                      <label key={g.id} className="flex items-center gap-2 text-xs text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={createForm.groupIds.includes(g.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCreateForm({ ...createForm, groupIds: [...createForm.groupIds, g.id] });
+                            } else {
+                              setCreateForm({ ...createForm, groupIds: createForm.groupIds.filter((id) => id !== g.id) });
+                            }
+                          }}
+                          className="size-4 rounded border-slate-300 text-emerald-800"
+                        />
+                        {g.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={createLoading}
+                  className="rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
+                >
+                  {createLoading ? "Cadastrando…" : "Criar Evento"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

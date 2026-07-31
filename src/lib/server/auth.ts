@@ -25,6 +25,13 @@ export function requireAdmin(actor: AuthenticatedActor) {
   if (actor.role !== "admin") throw new ApiError(403, "Acesso exclusivo para administradores");
 }
 
+export function requireLeaderOrAdmin(actor: AuthenticatedActor) {
+  if (actor.role !== "admin" && actor.role !== "leader") {
+    throw new ApiError(403, "Acesso exclusivo para líderes e administradores");
+  }
+}
+
+
 export function errorResponse(error: unknown) {
   const status = error instanceof ApiError ? error.status : 500;
   const message = error instanceof ApiError ? error.message : "Erro interno";

@@ -7,6 +7,28 @@ import { recordAudit, recordChange } from "@/lib/server/sync";
 
 export const runtime = "nodejs";
 
+export async function GET(request: NextRequest, context: { params: Promise<{ uid: string }> }) {
+  try {
+    const actor = await authenticate(request);
+    requireAdmin(actor);
+    const { uid } = await context.params;
+
+    const [userDoc, privateDoc] = await Promise.all([
+      adminDb.collection("users").doc(uid).get(),
+      adminDb.collection("userPrivate").doc(uid).get(),
+    ]);
+
+    if (!userDoc.exists) throw new ApiError(404, "Usuário não encontrado");
+
+    return NextResponse.json({
+      public: { id: userDoc.id, ...userDoc.data() },
+      private: privateDoc.exists ? privateDoc.data() : null,
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function PATCH(request: NextRequest, context: { params: Promise<{ uid: string }> }) {
   try {
     const actor = await authenticate(request); requireAdmin(actor);
@@ -34,3 +56,4 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     return NextResponse.json({ ok: true });
   } catch (error) { return errorResponse(error); }
 }
+

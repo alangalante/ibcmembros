@@ -30,10 +30,11 @@ service cloud.firestore {
     }
 
     match /groups/{groupId} {
-      allow get, list: if signedIn() && (isAdmin() || request.auth.uid in resource.data.participantIds);
+      allow get, list: if signedIn() && (resource.data.active == true || isAdmin());
       // Mutações de grupo passam pelas APIs de servidor para manter histórico de versão e auditoria
       allow create, update, delete: if false;
     }
+
 
     match /groupMemberships/{membershipId} {
       allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid || isLeaderOf(resource.data.groupId));

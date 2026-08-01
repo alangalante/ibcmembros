@@ -32,7 +32,7 @@ function canRead(actor: AuthenticatedActor, entity: Entity, snapshot: DocumentSn
   const data = snapshot.data() ?? {};
   const groupIds = Array.isArray(actor.groupIds) ? actor.groupIds : [];
   if (entity === "user") return data.active === true;
-  if (entity === "group") return groupIds.includes(snapshot.id);
+  if (entity === "group") return data.active === true;
   if (entity === "membership") return data.userId === actor.uid || groupIds.includes(data.groupId);
   return data.scope === "global" || (data.groupIds ?? []).some((id: string) => groupIds.includes(id));
 }
@@ -55,14 +55,15 @@ async function fullSnapshot(actor: AuthenticatedActor) {
     if (actor.role === "admin") {
       const snap = await adminDb.collection("groups").get();
       groupDocs = snap.docs;
-    } else if (groupIds.length) {
-      const snap = await adminDb.getAll(...groupIds.map((id) => adminDb.collection("groups").doc(id)));
-      groupDocs = snap.filter((item) => item.exists);
+    } else {
+      const snap = await adminDb.collection("groups").where("active", "==", true).get();
+      groupDocs = snap.docs;
     }
   } catch {
     const snap = await adminDb.collection("groups").get();
-    groupDocs = snap.docs.filter((d) => actor.role === "admin" || groupIds.includes(d.id));
+    groupDocs = snap.docs.filter((d) => actor.role === "admin" || d.get("active") === true);
   }
+
 
   let eventDocs: DocumentSnapshot[] = [];
   try {

@@ -92,5 +92,26 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data?.link || "/"));
+  let rawLink = event.notification.data?.link || "/";
+  let targetUrl = self.location.origin;
+
+  try {
+    const urlObj = new URL(rawLink, self.location.origin);
+    targetUrl = `${self.location.origin}${urlObj.pathname}${urlObj.search}`;
+  } catch {
+    targetUrl = self.location.origin;
+  }
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          client.navigate(targetUrl);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+    })
+  );
 });
+

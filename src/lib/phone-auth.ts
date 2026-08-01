@@ -11,6 +11,19 @@ export function normalizeDDDPhone(phone: string): string {
 }
 
 /**
+ * Formata um telefone com máscara amigável (XX) XXXXX-XXXX ou (XX) XXXX-XXXX.
+ */
+export function formatPhoneMask(phone: string): string {
+  const digits = normalizeDDDPhone(phone);
+  if (!digits) return "";
+  if (digits.length <= 2) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+
+/**
  * Converte um telefone em e-mail interno para o Firebase Auth usando apenas DDD + Número (ex: 22999947318).
  */
 export function phoneToInternalEmail(phone: string): string {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
+import { ConfirmModal } from "@/components/confirm-modal";
 
 export default function AdminGroupsPage() {
   const { user } = useAuth();
@@ -24,12 +25,16 @@ export default function AdminGroupsPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
 
-  // Adicionar Membro ao Grupo
+  // Adicionar / Remover Membro do Grupo
   const [selectedUserToAdd, setSelectedUserToAdd] = useState("");
   const [isLeaderRoleCheck, setIsLeaderRoleCheck] = useState(false);
   const [memberAddLoading, setMemberAddLoading] = useState(false);
   const [memberAddError, setMemberAddError] = useState("");
   const [basicUpdateSuccess, setBasicUpdateSuccess] = useState(false);
+
+  const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null);
+  const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
+
 
   if (!isAdmin) {
 
@@ -150,9 +155,9 @@ export default function AdminGroupsPage() {
     }
   }
 
-  async function handleRemoveMemberFromGroup(userId: string) {
-    if (!editingGroupId) return;
-    if (!confirm("Remover este membro do grupo?")) return;
+  async function executeRemoveMemberFromGroup() {
+    if (!editingGroupId || !removeMemberUid) return;
+    setRemoveMemberLoading(true);
 
     try {
       const token = await user?.getIdToken();
@@ -162,16 +167,20 @@ export default function AdminGroupsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId: removeMemberUid }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao remover participante");
+      setRemoveMemberUid(null);
       await offline.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Falha ao remover participante");
+    } finally {
+      setRemoveMemberLoading(false);
     }
   }
+
 
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
@@ -364,7 +373,7 @@ export default function AdminGroupsPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleRemoveMemberFromGroup(member.id)}
+                            onClick={() => setRemoveMemberUid(member.id)}
                             className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
                           >
                             Desvincular
@@ -436,6 +445,19 @@ export default function AdminGroupsPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmação de Desvinculação */}
+      <ConfirmModal
+        isOpen={Boolean(removeMemberUid)}
+        title="IBC Membros"
+        message="Tem certeza que deseja desvincular este participante do grupo?"
+        confirmText={removeMemberLoading ? "Removendo…" : "Desvincular"}
+        cancelText="Cancelar"
+        isDanger={true}
+        onConfirm={executeRemoveMemberFromGroup}
+        onCancel={() => setRemoveMemberUid(null)}
+      />
     </div>
   );
 }
+

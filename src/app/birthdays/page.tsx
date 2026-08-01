@@ -1,15 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { NavHeader } from "@/components/nav-header";
 import { useOfflineData } from "@/components/offline-data-provider";
+import { MemberDetailModal } from "@/components/member-detail-modal";
 import { formatWhatsAppLink } from "@/lib/phone-auth";
 
 export default function BirthdaysPage() {
   const { user, loading } = useAuth();
   const offline = useOfflineData();
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", month: "2-digit", day: "2-digit" }).formatToParts();
   const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   const people = offline.users.filter((person) => person.active && person.birthMonthDay === `${value("month")}-${value("day")}`);
@@ -30,9 +34,13 @@ export default function BirthdaysPage() {
           {people.map((person) => {
             const whatsappUrl = `${formatWhatsAppLink(person.phoneE164)}?text=${encodeURIComponent(`Feliz aniversário, ${person.name}!`)}`;
             return (
-              <article key={person.id} className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+              <article
+                key={person.id}
+                onClick={() => setSelectedUid(person.id)}
+                className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 cursor-pointer hover:border-emerald-300 hover:shadow-xs transition-all"
+              >
                 {person.photoUrl ? (
-                  <Image src={person.photoUrl} alt="" width={64} height={64} className="size-16 rounded-full object-cover" />
+                  <Image src={person.photoUrl} alt="" width={64} height={64} className="size-16 rounded-full object-cover border border-slate-200" />
                 ) : (
                   <div className="grid size-16 shrink-0 place-items-center rounded-full bg-emerald-100 text-2xl">🎂</div>
                 )}
@@ -44,6 +52,7 @@ export default function BirthdaysPage() {
                       href={whatsappUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="mt-2 inline-block text-xs font-bold text-emerald-800 hover:underline"
                     >
                       Enviar mensagem WhatsApp →
@@ -55,6 +64,11 @@ export default function BirthdaysPage() {
           })}
         </div>
       </main>
+
+      <MemberDetailModal
+        userId={selectedUid}
+        onClose={() => setSelectedUid(null)}
+      />
     </div>
   );
 }

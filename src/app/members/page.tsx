@@ -7,8 +7,9 @@ import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
 import { PhotoUpload } from "@/components/photo-upload";
-import { formatWhatsAppLink, normalizeDDDPhone } from "@/lib/phone-auth";
-
+import { MemberDetailModal } from "@/components/member-detail-modal";
+import { ConfirmModal } from "@/components/confirm-modal";
+import { formatPhoneMask, normalizeDDDPhone } from "@/lib/phone-auth";
 
 type PersonFilter = "all" | "member" | "visitor" | "inactive";
 
@@ -30,6 +31,10 @@ export default function MembersDirectoryPage() {
 
   // Modal Ver Detalhes do Membro (para qualquer usuário)
   const [viewingUid, setViewingUid] = useState<string | null>(null);
+
+  // Confirmação de Exclusão
+  const [deleteTargetUid, setDeleteTargetUid] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Modal Novo Cadastro (apenas para Admin)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -63,7 +68,6 @@ export default function MembersDirectoryPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [idToken, setIdToken] = useState("");
   const [fetchingPrivate, setFetchingPrivate] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const filteredUsers = offline.users
     .slice()
@@ -80,12 +84,6 @@ export default function MembersDirectoryPage() {
       if (filter === "inactive") return !item.active;
       return true;
     });
-
-
-  const viewingUser = offline.users.find((u) => u.id === viewingUid);
-  const viewingGroups = viewingUser
-    ? offline.groups.filter((g) => viewingUser.groupIds.includes(g.id))
-    : [];
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -144,7 +142,7 @@ export default function MembersDirectoryPage() {
 
     setEditForm({
       name: publicProfile.name,
-      phoneE164: publicProfile.phoneE164,
+      phoneE164: formatPhoneMask(publicProfile.phoneE164),
       role: publicProfile.role,
       type: publicProfile.type,
       active: publicProfile.active,
@@ -185,6 +183,7 @@ export default function MembersDirectoryPage() {
     setEditLoading(true);
 
     try {
+      const cleanPhone = normalizeDDDPhone(editForm.phoneE164);
       const token = await user?.getIdToken();
       const res = await fetch(`/api/admin/users/${editingUid}`, {
         method: "PATCH",
@@ -195,7 +194,7 @@ export default function MembersDirectoryPage() {
         body: JSON.stringify({
           public: {
             name: editForm.name,
-            phoneE164: editForm.phoneE164,
+            phoneE164: cleanPhone,
             role: editForm.role,
             type: editForm.type,
             active: editForm.active,
@@ -222,16 +221,17 @@ export default function MembersDirectoryPage() {
     }
   }
 
-  async function handleDelete(uid: string) {
-    if (!confirm("Tem certeza que deseja excluir permanentemente este cadastro?")) return;
+  async function executeDelete() {
+    if (!deleteTargetUid) return;
     setDeleteLoading(true);
     try {
       const token = await user?.getIdToken();
-      const res = await fetch(`/api/admin/users/${uid}`, {
+      const res = await fetch(`/api/admin/users/${deleteTargetUid}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Erro ao excluir cadastro");
+      setDeleteTargetUid(null);
       setEditingUid(null);
       setViewingUid(null);
       await offline.refresh();
@@ -295,7 +295,6 @@ export default function MembersDirectoryPage() {
 
         {/* Lista de Membros */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-
           {filteredUsers.length ? (
             filteredUsers.map((item) => (
               <article
@@ -319,7 +318,7 @@ export default function MembersDirectoryPage() {
                   )}
                   <div>
                     <h3 className="font-semibold text-sm text-slate-900">{item.name}</h3>
-                    <p className="text-xs text-slate-500">{item.phoneE164}</p>
+                    <p className="text-xs text-slate-500">{formatPhoneMask(item.phoneE164)}</p>
                     <div className="mt-1 flex gap-1 flex-wrap">
                       <span className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold ${item.type === "member" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>
                         {item.type === "member" ? "Membro" : "Visitante"}
@@ -349,106 +348,24 @@ export default function MembersDirectoryPage() {
       </main>
 
       {/* Modal Visualizar Detalhes do Membro */}
-      {viewingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
-            <div className="flex justify-between items-start">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">Perfil do Membro</span>
-              <button onClick={() => setViewingUid(null)} className="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
-            </div>
+      <MemberDetailModal
+        userId={viewingUid}
+        onClose={() => setViewingUid(null)}
+        onOpenEdit={isAdmin ? openEditModal : undefined}
+        onDelete={isAdmin ? (uid) => setDeleteTargetUid(uid) : undefined}
+      />
 
-            <div className="mt-4 text-center">
-              {viewingUser.photoUrl ? (
-                <Image
-                  src={viewingUser.photoUrl}
-                  alt={viewingUser.name}
-                  width={96}
-                  height={96}
-                  className="mx-auto size-24 rounded-full object-cover border-2 border-emerald-700 shadow-md"
-                />
-              ) : (
-                <div className="mx-auto grid size-24 place-items-center rounded-full bg-emerald-100 font-bold text-emerald-800 text-2xl shadow-inner">
-                  {viewingUser.name.substring(0, 2).toUpperCase()}
-                </div>
-              )}
-
-              <h2 className="mt-3 text-xl font-bold text-slate-900">{viewingUser.name}</h2>
-              <div className="mt-1 flex justify-center gap-1.5">
-                <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${viewingUser.type === "member" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>
-                  {viewingUser.type === "member" ? "Membro" : "Visitante"}
-                </span>
-                {viewingUser.role !== "common" && (
-                  <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-                    {viewingUser.role === "admin" ? "Administrador" : "Líder de Grupo"}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4 rounded-2xl bg-slate-50 p-4 border border-slate-100">
-              {/* Telefone + WhatsApp */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Telefone para Contato</p>
-                <div className="mt-1 flex items-center justify-between">
-                  <p className="text-sm font-bold text-slate-900">{viewingUser.phoneE164}</p>
-                  <a
-                    href={formatWhatsAppLink(viewingUser.phoneE164)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-                  >
-                    💬 WhatsApp
-                  </a>
-
-                </div>
-              </div>
-
-              {/* Aniversário */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Aniversário</p>
-                <p className="text-sm font-bold text-slate-900">
-                  {viewingUser.birthMonthDay.split("-").reverse().join("/")}
-                </p>
-              </div>
-
-              {/* Grupos do Membro */}
-              <div>
-                <p className="text-xs font-semibold text-slate-500 mb-1.5">Grupos de Comunhão</p>
-                {viewingGroups.length ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {viewingGroups.map((g) => (
-                      <span key={g.id} className="rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-emerald-900 border border-slate-200 shadow-2xs">
-                        🤝 {g.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-500 italic">Não vinculado a nenhum grupo no momento.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Ações de Administrador */}
-            {isAdmin && (
-              <div className="mt-6 border-t border-slate-100 pt-4 flex gap-2">
-                <button
-                  onClick={() => openEditModal(viewingUser.id)}
-                  className="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800"
-                >
-                  ✏️ Editar Cadastro
-                </button>
-                <button
-                  onClick={() => handleDelete(viewingUser.id)}
-                  disabled={deleteLoading}
-                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100"
-                >
-                  🗑️ Excluir
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Confirmação de Exclusão */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTargetUid)}
+        title="Excluir Cadastro"
+        message="Tem certeza que deseja excluir permanentemente este cadastro da igreja?"
+        confirmText={deleteLoading ? "Excluindo…" : "Excluir Cadastro"}
+        cancelText="Cancelar"
+        isDanger={true}
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteTargetUid(null)}
+      />
 
       {/* Modal Criar Novo Cadastro (Apenas Admin) */}
       {showCreateModal && (
@@ -475,9 +392,9 @@ export default function MembersDirectoryPage() {
                   <input
                     type="text"
                     required
-                    placeholder="22999999999"
+                    placeholder="(22) 99999-9999"
                     value={createForm.phoneE164}
-                    onChange={(e) => setCreateForm({ ...createForm, phoneE164: e.target.value })}
+                    onChange={(e) => setCreateForm({ ...createForm, phoneE164: formatPhoneMask(e.target.value) })}
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   />
                 </div>
@@ -579,8 +496,9 @@ export default function MembersDirectoryPage() {
                   <input
                     type="text"
                     required
+                    placeholder="(22) 99999-9999"
                     value={editForm.phoneE164}
-                    onChange={(e) => setEditForm({ ...editForm, phoneE164: e.target.value })}
+                    onChange={(e) => setEditForm({ ...editForm, phoneE164: formatPhoneMask(e.target.value) })}
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   />
                 </div>

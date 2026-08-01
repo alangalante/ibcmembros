@@ -1,6 +1,17 @@
 import { z } from "zod";
 
-export const phoneE164 = z.string().regex(/^\+[1-9]\d{7,14}$/, "Use o formato +5522999999999");
+export const phoneE164 = z.preprocess(
+  (val) => {
+    if (typeof val !== "string") return val;
+    let digits = val.replace(/\D/g, "");
+    if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) {
+      digits = digits.slice(2);
+    }
+    return digits;
+  },
+  z.string().regex(/^\d{10,11}$/, "Telefone inválido (informe DDD + Número com 10 ou 11 dígitos)")
+);
+
 export const userSchema = z.object({
   name: z.string().trim().min(2).max(120),
   birthDate: z.iso.date(),

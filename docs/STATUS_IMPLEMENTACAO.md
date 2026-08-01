@@ -604,17 +604,33 @@ Status: **100% Sincronizado.**
 
 ## 19. Estado Consolidado do Projeto
 
-O projeto **IBC Membros** encontra-se em estágio de **produção / pronto para uso**, com:
+O projeto **IBC Membros** encontra-se em estágio **de produção / pronto para uso com todas as melhorias recentes integradas**:
 
-1. **Autenticação**: Login por número de telefone (DDD + número) e senha, admin master promovido.
-2. **Dados Legados**: 374 membros importados do CSV para o Cloud Firestore.
-3. **Módulos Administrativos**: Telas `/admin/users`, `/admin/groups` e `/admin/events` ativas e com live sync.
-4. **PWA & UI**: Responsivo para mobile e desktop, logo oficial da igreja configurada em ícones/favicons, suporte a offline-first com IndexedDB.
-5. **Fotos**: Upload direto e WebP 400x400 para Cloudinary.
-6. **Segurança**: Regras e restrições de privacidade rigorosas (ano de nascimento protegido).
+1. **Autenticação**: Login por número de telefone (DDD + número) e senha, normalizando DDI (+55), com admin master promovido.
+2. **Dados Legados**: 374 membros importados do CSV para o Cloud Firestore de produção com sucesso.
+3. **Módulos Administrativos**: Telas `/admin/users`, `/admin/groups` e `/admin/events` ativas, com suporte a criação, edição e exclusão de eventos e membros com live sync.
+4. **PWA & UI Responsiva**:
+   - Funcional em telas mobile, laptops e desktops em layout grid.
+   - Ícones e favicons com a logo oficial da igreja.
+   - Suporte offline-first com IndexedDB.
+   - Componente `PullToRefresh` no Dashboard.
+5. **Fotos**: Redimensionamento e compressão automática no navegador para formato WebP (400x400) com upload direto e assinado no Cloudinary.
+6. **Segurança & Privacidade**:
+   - Data e ano de nascimento totalmente protegidos na coleção privada `userPrivate`.
+   - Trava de escrita direta no Firestore via cliente (`firestore.rules`).
+   - Sincronização de grupos ativos liberada para visualização de vínculos por qualquer membro.
+7. **Melhorias de Experiência e Correções Recentes (Agosto/2026)**:
+   - **Modal de Perfil Reutilizável (`MemberDetailModal`)**: Exibição de foto, dados, WhatsApp direto, aniversário (dia/mês) e grupos em Aniversariantes, Membros e Grupos do Dashboard.
+   - **Modal de Grupos no Dashboard**: Clique nos cards de "Meus Grupos" exibe a lista de participantes e líderes, permitindo clicar em qualquer membro para abrir seu perfil.
+   - **Visualização de Grupos por Membros Comuns**: Ajuste nas regras e rota `/api/sync/pull` garantindo que membros não-administradores consigam visualizar os grupos de outros membros.
+   - **Edição de Eventos**: Painel `/admin/events` conta com fluxo completo de edição de eventos por administradores e líderes criadores.
+   - **Máscara e Validação de Telefone**: Formatação em tempo real `(XX) XXXXX-XXXX` ou `(XX) XXXX-XXXX` nos formulários de membros e validação Zod backend com higienização de caracteres.
+   - **Modal Customizado de Confirmação (`ConfirmModal`)**: Exclusão de eventos, cadastros e desvinculações sem mensagens com domínio do navegador (exibindo apenas "IBC Membros").
+   - **Notificações Push / FCM**: Auto-registro em múltiplos dispositivos no login e correção no Service Worker para manter a navegação no PWA sem redirecionar para a Vercel.
 
 ## 20. Resumo de Atividades Futuras / Melhorias Opcionais
 
-1. Monitoramento de consumo do plano Spark do Firebase e do limite gratuito do Cloudinary.
-2. Expansão contínua de relatórios de auditoria e novos filtros nos painéis conforme demanda do usuário.
+1. Monitoramento continuo de tráfego do plano Spark do Firebase e Cloudinary Free.
+2. Expansão contínua de relatórios de auditoria e novos filtros nos painéis conforme necessidade da igreja.
+
 

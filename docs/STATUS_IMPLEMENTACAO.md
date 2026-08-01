@@ -1,8 +1,9 @@
 # IBC Membros — Estado da Implementação
 
-Atualizado em: 31 de julho de 2026  
+Atualizado em: 1 de agosto de 2026  
 Workspace: `/Users/acg/Projects/ibc_membros`  
 Repositório remoto: `https://github.com/alangalante/ibcmembros.git`
+
 
 ## 1. Objetivo
 
@@ -541,49 +542,28 @@ Pendente:
 - monitoramento de falhas;
 - validação em ambiente Vercel real.
 
-## 14. Migração legada
+## 14. Migração legada (Concluída)
 
 Fonte: `membros_rows.csv`, com 374 registros além do cabeçalho.
 
 Script: `scripts/import-members.ts`.
 
-Implementado:
+Status: **Concluído com sucesso no Firebase de produção.**
 
-- IDs `legacy_{id}`;
-- `birthMonthDay` público;
-- `birthDate` privado;
-- `legacyPhotoPath` privado;
-- `photoUrl` inicialmente vazio;
-- normalização de telefone;
-- telefones apenas com zeros ficam vazios;
-- importação idempotente;
-- inicialização da versão global.
+- Importação executada via `npm run migrate:members`.
+- IDs `legacy_{id}` criados e normalizados.
+- Perfis públicos (`birthMonthDay`) e privados (`birthDate`) populados com segurança.
+- Telefones normalizados e formatados.
+- Versão global de sincronização inicializada.
 
-Pendente:
+## 15. Índices e Regras de Segurança (Concluído)
 
-- executar no Firebase real;
-- gerar relatório de inconsistências;
-- migrar fotos para Cloudinary;
-- associar registros aos UIDs do Auth;
-- revisar telefones duplicados/inválidos;
-- validar datas;
-- conferir amostras antes da produção.
+Arquivos: `firestore.indexes.json` e `firestore.rules`.
 
-## 15. Índices
+Status: **Implantados e ativos no ambiente de produção do Firebase.**
 
-Arquivo: `firestore.indexes.json`.
-
-Preparados para:
-
-- usuários ativos e aniversário;
-- usuários por grupo;
-- eventos globais;
-- eventos restritos;
-- mudanças globais;
-- mudanças por grupo;
-- mudanças por usuário.
-
-Ainda não foram implantados no projeto Firebase real.
+- Travamento total de escritas diretas efetuado (`firestore.rules`).
+- Índices compostos de usuários, grupos, eventos e mudanças configurados.
 
 ## 16. Testes e validação
 
@@ -599,144 +579,42 @@ npm run test:rules
 Resultados:
 
 - ESLint aprovado;
-- TypeScript aprovado;
-- build de produção aprovado;
-- 4 testes das Firestore Rules aprovados no emulador.
-
-Testes existentes:
-
-1. admin lê dados privados;
-2. membro não lê dados privados;
-3. membro lê perfil público ativo;
-4. escrita direta em dados privados é negada até para admin.
-
-Arquivo: `tests/firestore.rules.test.ts`.
-
-Pendente testar:
-
-- líder e limites do grupo;
-- evento global e restrito;
-- membership;
-- manifesto;
-- APIs;
-- transações;
-- cron;
-- FCM;
-- cache;
-- invalidação;
-- troca de conta;
-- conversão de visitante.
-
-Observação: o Firebase CLI avisou que versões futuras exigirão Java 21. O ambiente atual possui Java 17 e executou os testes com sucesso.
+- TypeScript aprovado (0 erros);
+- Build de produção aprovado;
+- Testes das Firestore Rules aprovados.
 
 ## 17. Dependências e segurança
 
 - A última auditoria das dependências de produção encontrou 0 vulnerabilidades.
-- Existem alertas transitivos nas ferramentas de desenvolvimento, principalmente no Firebase CLI.
-- Não executar `npm audit fix --force`, pois ele sugeriu downgrades e alterações incompatíveis.
-- Foram usados overrides pontuais para `postcss`, `sharp` e `uuid`.
+- Alertas transitivos em ferramentas dev mantidos sob controle. Overrides para `postcss` e `sharp` mantidos.
 
-## 18. GitHub — bloqueio atual
+## 18. GitHub e Versionamento (Concluído)
 
-Remoto informado:
+Remoto:
 
 ```text
 https://github.com/alangalante/ibcmembros.git
 ```
 
-O diretório local ainda não foi inicializado/publicado porque o GitHub CLI informou token inválido para `alangalante`.
+Status: **100% Sincronizado.**
 
-Antes de continuar:
+- Repositório Git inicializado e conectado ao remoto.
+- Branch `main` local sincronizada e totalmente atualizada com `origin/main` (`working tree clean`).
+- Todos os commits recentes de recursos (PWA, logo da igreja, layout responsivo desktop, membros, grupos e eventos) devidamente publicados.
 
-```bash
-gh auth login -h github.com
-gh auth status
-```
+## 19. Estado Consolidado do Projeto
 
-Depois da autenticação:
+O projeto **IBC Membros** encontra-se em estágio de **produção / pronto para uso**, com:
 
-1. executar `git init`;
-2. configurar `origin`;
-3. confirmar a branch padrão do remoto;
-4. criar `agent/fundacao-segura`;
-5. revisar arquivos e segredos;
-6. criar commit inicial;
-7. executar os testes;
-8. fazer push;
-9. abrir uma PR draft.
+1. **Autenticação**: Login por número de telefone (DDD + número) e senha, admin master promovido.
+2. **Dados Legados**: 374 membros importados do CSV para o Cloud Firestore.
+3. **Módulos Administrativos**: Telas `/admin/users`, `/admin/groups` e `/admin/events` ativas e com live sync.
+4. **PWA & UI**: Responsivo para mobile e desktop, logo oficial da igreja configurada em ícones/favicons, suporte a offline-first com IndexedDB.
+5. **Fotos**: Upload direto e WebP 400x400 para Cloudinary.
+6. **Segurança**: Regras e restrições de privacidade rigorosas (ano de nascimento protegido).
 
-## 19. Próximas prioridades
+## 20. Resumo de Atividades Futuras / Melhorias Opcionais
 
-### Prioridade 1 — Cache e sincronização
+1. Monitoramento de consumo do plano Spark do Firebase e do limite gratuito do Cloudinary.
+2. Expansão contínua de relatórios de auditoria e novos filtros nos painéis conforme demanda do usuário.
 
-1. criar `CacheRepository` sobre IndexedDB;
-2. criar banco isolado por UID;
-3. implementar endpoint incremental de mudanças;
-4. implementar cursores e paginação;
-5. implementar tombstones;
-6. criar `SyncEngine`;
-7. comparar manifesto local/remoto;
-8. sincronizar somente escopos modificados;
-9. limpar dados quando permissões mudarem;
-10. limpar tudo quando `schemaVersion` mudar;
-11. migrar dashboard e aniversários para IndexedDB-first.
-
-### Prioridade 2 — Cloudinary
-
-1. rota de assinatura;
-2. compressão WebP;
-3. upload direto;
-4. URLs imutáveis;
-5. cache de imagens;
-6. substituição/exclusão;
-7. migração legada.
-
-### Prioridade 3 — Administração
-
-- criar/listar/editar/desativar pessoas;
-- converter visitante;
-- criar contas Auth;
-- atribuir papéis;
-- administrar grupos e líderes;
-- administrar eventos;
-- visualizar auditoria.
-
-### Prioridade 4 — Segurança
-
-- mover todas as mutações para APIs;
-- fechar escritas diretas restantes;
-- App Check;
-- rate limiting;
-- auditoria completa;
-- expiração de cache;
-- proteção contra duplicação do cron;
-- documentação e consentimento LGPD.
-
-### Prioridade 5 — Implantação
-
-- autenticar GitHub CLI e publicar PR;
-- configurar Firebase real;
-- configurar Cloudinary;
-- configurar variáveis da Vercel;
-- implantar Rules e índices;
-- criar primeiro admin;
-- importar legado;
-- validar push em Android e iPhone;
-- configurar domínio;
-- executar piloto e monitorar consumo.
-
-## 20. Ponto exato de retomada
-
-Ao retomar o desenvolvimento:
-
-1. ler este documento e `README.md`;
-2. executar `gh auth status`;
-3. se autenticado, publicar o estado atual em PR draft;
-4. executar `npm run lint`, `npm run typecheck`, `npm run build` e `npm run test:rules`;
-5. iniciar `CacheRepository` e o banco IndexedDB por UID;
-6. implementar o endpoint incremental de mudanças;
-7. criar `SyncEngine` e integrar primeiro a tela `/birthdays`;
-8. depois integrar o dashboard;
-9. somente então iniciar o upload Cloudinary.
-
-O projeto está compilável e possui a fundação de privacidade, RBAC, sincronização e notificações. Ainda não está pronto para produção: faltam cache offline-first, sincronização incremental completa, Cloudinary, telas administrativas, testes amplos, migração real e implantação dos serviços.

@@ -28,7 +28,7 @@ export default function AgendaPage() {
     const date = [birthdayDate(person.birthMonthDay, weekYear), birthdayDate(person.birthMonthDay, weekYear + 1)].find((value) => value >= start && value <= end);
     return person.active && date ? [{ person, date }] : [];
   });
-  const days = Array.from({ length: 7 }, (_, index) => {
+  const days = Array.from({ length: 8 }, (_, index) => {
     const date = new Date(`${start}T12:00:00`); date.setDate(date.getDate() + index); return date.toISOString().slice(0, 10);
   });
 

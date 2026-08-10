@@ -15,7 +15,7 @@ export function weekBounds(referenceIso = todayIso()) {
   const start = new Date(reference);
   start.setDate(reference.getDate() - reference.getDay());
   const end = new Date(start);
-  end.setDate(start.getDate() + 6);
+  end.setDate(start.getDate() + 7);
   return { start: isoFromDate(start), end: isoFromDate(end) };
 }
 

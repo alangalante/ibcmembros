@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
 
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = "ibc_membros/agenda";
-    const publicId = `agenda_${actor.uid}_${timestamp}`;
+    // Em recursos "raw", a extensão faz parte do public_id e é necessária
+    // para que a URL de entrega aponte para o arquivo existente.
+    const publicId = `agenda_${actor.uid}_${timestamp}.pdf`;
     const signature = crypto.createHash("sha1").update(`folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest("hex");
     const upload = new FormData();
     upload.append("file", file);

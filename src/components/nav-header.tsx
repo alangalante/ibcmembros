@@ -40,8 +40,9 @@ export function NavHeader() {
 
 
   return (
-    <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 py-3">
+    <>
+      <header className="sticky top-0 z-30 border-b border-emerald-900/10 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto max-w-lg px-4 py-3 md:max-w-4xl lg:max-w-6xl">
 
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
@@ -68,7 +69,8 @@ export function NavHeader() {
           </div>
         </div>
 
-      </div>
+        </div>
+      </header>
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md">
         <div className="mx-auto flex max-w-lg items-stretch justify-around px-2">
           {navItems.map((item) => {
@@ -90,6 +92,6 @@ export function NavHeader() {
           })}
         </div>
       </nav>
-    </header>
+    </>
   );
 }

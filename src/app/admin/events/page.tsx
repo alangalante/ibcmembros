@@ -6,10 +6,12 @@ import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { uploadAgendaPdf } from "@/lib/pdf";
+import { todayIso } from "@/lib/agenda";
 
 export default function AdminEventsPage() {
   const { user } = useAuth();
   const offline = useOfflineData();
+  const today = todayIso();
 
   const currentUser = offline.users.find((u) => u.id === user?.uid);
   const isAdmin = currentUser?.role === "admin" || user?.email?.startsWith("22999947318");
@@ -228,6 +230,7 @@ export default function AdminEventsPage() {
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {events.length ? (
             events.map((ev) => {
+              const passed = ev.eventDate < today;
               const targetGroupNames = (ev.groupIds || [])
                 .map((gId) => offline.groups.find((g) => g.id === gId)?.name)
                 .filter(Boolean)
@@ -236,7 +239,7 @@ export default function AdminEventsPage() {
               const canEditOrDelete = isAdmin || ev.createdBy === user?.uid;
 
               return (
-                <article key={ev.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-xs">
+                <article key={ev.id} className={`rounded-2xl border p-4 shadow-xs transition ${passed ? "border-slate-200 bg-slate-100 opacity-50 grayscale" : "border-slate-100 bg-white"}`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${ev.scope === "global" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900 border border-amber-200"}`}>
                       {ev.scope === "global" ? "🌐 Global" : `👥 ${targetGroupNames || "Grupo Restrito"}`}
@@ -245,6 +248,7 @@ export default function AdminEventsPage() {
                       {ev.eventDate.split("-").reverse().join("/")}
                     </span>
                   </div>
+                  {passed && <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Já passou</p>}
 
                   <h3 className="mt-2 font-bold text-base text-slate-900">{ev.title}</h3>
                   <p className="mt-1 text-xs text-slate-600 line-clamp-2">{ev.description || "Sem descrição."}</p>
@@ -347,7 +351,7 @@ export default function AdminEventsPage() {
                 />
               </div>
 
-              <div><label className="block text-xs font-bold text-slate-700">PDF (opcional, até 10 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setCreatePdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
+              <div><label className="block text-xs font-bold text-slate-700">PDF (opcional, até 4 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setCreatePdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700">Alcance *</label>
@@ -460,7 +464,7 @@ export default function AdminEventsPage() {
                 />
               </div>
 
-              <div><label className="block text-xs font-bold text-slate-700">Substituir PDF (opcional, até 10 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setEditPdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
+              <div><label className="block text-xs font-bold text-slate-700">Substituir PDF (opcional, até 4 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setEditPdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700">Alcance *</label>

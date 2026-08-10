@@ -31,12 +31,11 @@ export function NavHeader() {
   }
 
   const navItems = [
-    { label: "Início", href: "/" },
-    { label: "Membros", href: "/members" },
-    { label: "Semana", href: "/birthdays" },
-    { label: "Agenda", href: "/agenda" },
-    ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups" }] : []),
-    ...(canManageEvents ? [{ label: "Gerenciar agenda", href: "/admin/events" }] : []),
+    { label: "Início", href: "/", icon: "⌂" },
+    { label: "Membros", href: "/members", icon: "♙" },
+    { label: "Agenda", href: "/agenda", icon: "▣" },
+    ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups", icon: "♧" }] : []),
+    ...(canManageEvents ? [{ label: "Gestão", href: "/admin/events", icon: "⚙" }] : []),
   ];
 
 
@@ -69,25 +68,28 @@ export function NavHeader() {
           </div>
         </div>
 
-        <nav className="mt-3 flex overflow-x-auto gap-1 border-t border-slate-100 pt-2 no-scrollbar">
+      </div>
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-lg items-stretch justify-around px-2">
           {navItems.map((item) => {
-            const active = pathname === item.href;
+            const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[10px] font-semibold transition-colors ${
                   active
-                    ? "bg-emerald-800 text-white shadow-2xs"
-                    : "text-slate-600 hover:bg-slate-100 active:bg-slate-200"
+                    ? "text-emerald-800"
+                    : "text-slate-500 hover:text-slate-800 active:bg-slate-100"
                 }`}
               >
-                {item.label}
+                <span className={`grid size-7 place-items-center rounded-xl text-lg leading-none ${active ? "bg-emerald-100" : ""}`} aria-hidden="true">{item.icon}</span>
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
-        </nav>
-      </div>
+        </div>
+      </nav>
     </header>
   );
 }

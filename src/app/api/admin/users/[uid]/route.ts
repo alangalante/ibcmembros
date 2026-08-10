@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { adminUserPatchSchema } from "@/lib/validation";
 import { ApiError, authenticate, errorResponse, requireAdmin } from "@/lib/server/auth";
 import { recordAudit, recordChange } from "@/lib/server/sync";
+import { phoneToInternalEmail } from "@/lib/phone-auth";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,20 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
     const publicPatch: Record<string, unknown> = { ...parsed.data.public };
     if (parsed.data.public.name) publicPatch.nameSearch = parsed.data.public.name.toLocaleLowerCase("pt-BR");
     if (parsed.data.private.birthDate) publicPatch.birthMonthDay = parsed.data.private.birthDate.slice(5);
+
+    if (parsed.data.accessPassword) {
+      const userDoc = await adminDb.collection("users").doc(uid).get();
+      if (!userDoc.exists) throw new ApiError(404, "Usuário não encontrado");
+      const phone = String(parsed.data.public.phoneE164 || userDoc.get("phoneE164") || "");
+      const authData = { email: phoneToInternalEmail(phone), password: parsed.data.accessPassword, displayName: String(parsed.data.public.name || userDoc.get("name")) };
+      try {
+        await adminAuth.updateUser(uid, authData);
+      } catch (error: unknown) {
+        const code = (error as { code?: string }).code;
+        if (code !== "auth/user-not-found") throw error;
+        await adminAuth.createUser({ uid, ...authData, disabled: false });
+      }
+    }
 
     await adminDb.runTransaction(async (transaction) => {
       const userRef = adminDb.collection("users").doc(uid);
@@ -83,5 +98,4 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     return errorResponse(error);
   }
 }
-
 

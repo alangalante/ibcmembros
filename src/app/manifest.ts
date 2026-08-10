@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "IBC Membros",
     short_name: "IBC Membros",
-    description: "Gestão de membros, grupos e eventos da igreja",
+    description: "Gestão de membros, grupos e agenda da igreja",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

@@ -22,11 +22,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
     await adminDb.runTransaction(async (transaction) => {
       const eventRef = adminDb.collection("events").doc(eventId);
       const eventDoc = await transaction.get(eventRef);
-      if (!eventDoc.exists) throw new ApiError(404, "Evento não encontrado");
+      if (!eventDoc.exists) throw new ApiError(404, "Agenda não encontrada");
 
       const current = eventDoc.data()!;
       if (actor.role === "leader" && current.createdBy !== actor.uid) {
-        throw new ApiError(403, "Líder só pode editar seus próprios eventos");
+        throw new ApiError(403, "Líder só pode editar suas próprias agendas");
       }
 
       const updateData: Record<string, unknown> = {
@@ -67,11 +67,11 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     await adminDb.runTransaction(async (transaction) => {
       const eventRef = adminDb.collection("events").doc(eventId);
       const eventDoc = await transaction.get(eventRef);
-      if (!eventDoc.exists) throw new ApiError(404, "Evento não encontrado");
+      if (!eventDoc.exists) throw new ApiError(404, "Agenda não encontrada");
 
       const current = eventDoc.data()!;
       if (actor.role === "leader" && current.createdBy !== actor.uid) {
-        throw new ApiError(403, "Líder só pode excluir seus próprios eventos");
+        throw new ApiError(403, "Líder só pode excluir suas próprias agendas");
       }
 
       transaction.delete(eventRef);

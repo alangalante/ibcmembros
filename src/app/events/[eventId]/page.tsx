@@ -24,7 +24,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
           <article className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between gap-2">
               <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold ${event.scope === "global" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                {event.scope === "global" ? "Evento Global" : "Evento Restrito"}
+                {event.scope === "global" ? "Agenda Global" : "Agenda Restrita"}
               </span>
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 {event.eventDate.split("-").reverse().join("/")}
@@ -36,6 +36,8 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
             <p className="mt-3 text-sm text-slate-600 leading-relaxed whitespace-pre-line">
               {event.description || "Sem descrição informada."}
             </p>
+
+            {event.pdfUrl && <a href={event.pdfUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex rounded-xl bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800">Visualizar PDF</a>}
 
             {event.scope === "groups" && (
               <div className="mt-6 border-t border-slate-100 pt-4">
@@ -57,7 +59,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         ) : (
           <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
             <p className="text-sm text-slate-500">
-              {offline.status === "syncing" ? "Carregando detalhes do evento…" : "Evento não localizado ou você não possui permissão para acessá-lo."}
+              {offline.status === "syncing" ? "Carregando detalhes da agenda…" : "Agenda não localizada ou você não possui permissão para acessá-la."}
             </p>
           </div>
         )}

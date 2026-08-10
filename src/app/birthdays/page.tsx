@@ -1,74 +1,64 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@/components/auth-provider";
+import { useState } from "react";
 import { NavHeader } from "@/components/nav-header";
-import { useOfflineData } from "@/components/offline-data-provider";
 import { MemberDetailModal } from "@/components/member-detail-modal";
-import { formatWhatsAppLink } from "@/lib/phone-auth";
+import { useAuth } from "@/components/auth-provider";
+import { useOfflineData } from "@/components/offline-data-provider";
+import { birthdayDate, formatAgendaDate, todayIso, weekBounds } from "@/lib/agenda";
 
-export default function BirthdaysPage() {
+export default function WeeklyAgendaPage() {
   const { user, loading } = useAuth();
   const offline = useOfflineData();
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
-
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", month: "2-digit", day: "2-digit" }).formatToParts();
-  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  const people = offline.users.filter((person) => person.active && person.birthMonthDay === `${value("month")}-${value("day")}`);
+  const today = todayIso();
+  const { start, end } = weekBounds(today);
+  const year = Number(start.slice(0, 4));
+  const profile = offline.users.find((item) => item.id === user?.uid);
+  const groupIds = profile?.groupIds || [];
+  const visibleEvents = offline.events.filter((item) => item.eventDate >= start && item.eventDate <= end &&
+    (item.scope === "global" || item.groupIds.some((id) => groupIds.includes(id))));
+  const birthdays = offline.users.flatMap((person) => {
+    const candidates = [birthdayDate(person.birthMonthDay, year), birthdayDate(person.birthMonthDay, year + 1)];
+    const date = candidates.find((value) => value >= start && value <= end);
+    return person.active && date ? [{ person, date }] : [];
+  });
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(`${start}T12:00:00`); date.setDate(date.getDate() + index); return date.toISOString().slice(0, 10);
+  });
 
   if (loading) return <main className="grid min-h-dvh place-items-center">Carregando…</main>;
-  if (!user) return <main className="mx-auto max-w-lg p-6"><p>Entre no aplicativo para ver os aniversariantes.</p><Link href="/" className="mt-4 inline-block font-semibold text-emerald-800">Ir para o login</Link></main>;
+  if (!user) return <main className="p-6"><Link href="/">Ir para o login</Link></main>;
 
-  return (
-    <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
-      <NavHeader />
-      <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-6">
-        <h1 className="text-2xl font-bold">Aniversariantes de hoje 🎉</h1>
-        <p className="mt-1 text-xs text-slate-500">Privacidade preservada: apenas o dia e o mês são compartilhados.</p>
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          {(offline.status === "loading-cache" || offline.status === "syncing") && !people.length && <p className="text-sm text-slate-500">Carregando dados locais…</p>}
-          {offline.status !== "loading-cache" && !people.length && <p className="rounded-2xl bg-white p-5 text-sm text-slate-500">Nenhum aniversariante hoje.</p>}
-          {people.map((person) => {
-            const whatsappUrl = `${formatWhatsAppLink(person.phoneE164)}?text=${encodeURIComponent(`Feliz aniversário, ${person.name}!`)}`;
-            return (
-              <article
-                key={person.id}
-                onClick={() => setSelectedUid(person.id)}
-                className="flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm border border-slate-100 cursor-pointer hover:border-emerald-300 hover:shadow-xs transition-all"
-              >
-                {person.photoUrl ? (
-                  <Image src={person.photoUrl} alt="" width={64} height={64} className="size-16 rounded-full object-cover border border-slate-200" />
-                ) : (
-                  <div className="grid size-16 shrink-0 place-items-center rounded-full bg-emerald-100 text-2xl">🎂</div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <h2 className="truncate font-semibold text-slate-900">{person.name}</h2>
-                  <p className="text-xs text-slate-500">{person.birthMonthDay.split("-").reverse().join("/")}</p>
-                  {person.phoneE164 && (
-                    <a
-                      href={whatsappUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="mt-2 inline-block text-xs font-bold text-emerald-800 hover:underline"
-                    >
-                      Enviar mensagem WhatsApp →
-                    </a>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </main>
-
-      <MemberDetailModal
-        userId={selectedUid}
-        onClose={() => setSelectedUid(null)}
-      />
-    </div>
-  );
+  return <div className="min-h-dvh bg-slate-50 pb-20 text-slate-900">
+    <NavHeader />
+    <main className="mx-auto max-w-6xl px-4 pt-6">
+      <h1 className="text-2xl font-bold">Agenda da semana</h1>
+      <p className="mt-1 text-sm text-slate-500">De {start.split("-").reverse().join("/")} a {end.split("-").reverse().join("/")}</p>
+      <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {days.map((date) => {
+          const dayBirthdays = birthdays.filter((item) => item.date === date);
+          const dayEvents = visibleEvents.filter((item) => item.eventDate === date);
+          const passed = date < today;
+          return <section key={date} className={`rounded-2xl border bg-white p-4 shadow-xs transition ${passed ? "opacity-45 grayscale" : date === today ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-100"}`}>
+            <div className="flex items-center justify-between"><h2 className="font-bold capitalize">{formatAgendaDate(date)}</h2>{passed && <span className="text-[10px] font-bold uppercase text-slate-500">Já passou</span>}</div>
+            <div className="mt-3 space-y-2">
+              {dayBirthdays.map(({ person }) => {
+                const sameGroup = person.groupIds.some((id) => groupIds.includes(id));
+                return <button key={person.id} onClick={() => setSelectedUid(person.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${sameGroup ? "border-amber-300 bg-amber-50 ring-1 ring-amber-200" : "border-slate-100 bg-slate-50"}`}>
+                  {person.photoUrl ? <Image src={person.photoUrl} alt="" width={36} height={36} className="size-9 rounded-full object-cover" /> : <span className="grid size-9 place-items-center rounded-full bg-pink-100">🎂</span>}
+                  <span><span className="block text-xs font-bold">{person.name}</span><span className="text-[10px] text-slate-500">Aniversário{sameGroup ? " · Do seu grupo ⭐" : ""}</span></span>
+                </button>;
+              })}
+              {dayEvents.map((event) => <Link key={event.id} href={`/events/${event.id}`} className="block rounded-xl border border-emerald-100 bg-emerald-50 p-3"><span className="block text-xs font-bold text-emerald-950">📅 {event.title}</span><span className="text-[10px] text-emerald-800">{event.scope === "global" ? "Agenda global" : "Agenda do seu grupo"}</span></Link>)}
+              {!dayBirthdays.length && !dayEvents.length && <p className="py-3 text-center text-xs text-slate-400">Nada agendado.</p>}
+            </div>
+          </section>;
+        })}
+      </div>
+    </main>
+    <MemberDetailModal userId={selectedUid} onClose={() => setSelectedUid(null)} />
+  </div>;
 }

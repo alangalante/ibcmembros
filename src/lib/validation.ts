@@ -47,11 +47,12 @@ export const privateUserPatchSchema = z.object({
 export const adminUserPatchSchema = z.object({
   public: publicUserPatchSchema,
   private: privateUserPatchSchema,
-}).refine((data) => Object.keys(data.public).length + Object.keys(data.private).length > 0, "Nenhuma alteração informada");
+  accessPassword: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional(),
+}).refine((data) => Object.keys(data.public).length + Object.keys(data.private).length > 0 || Boolean(data.accessPassword), "Nenhuma alteração informada");
 
 export const adminCreateUserSchema = z.object({
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres").optional().or(z.literal("")),
+  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
   name: z.string().trim().min(2, "Nome curto demais").max(120),
   phoneE164,
   birthDate: z.iso.date("Data de nascimento inválida (AAAA-MM-DD)"),
@@ -84,6 +85,8 @@ export const eventSchema = z.object({
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve ser no formato YYYY-MM-DD"),
   scope: z.enum(["global", "groups"]),
   groupIds: z.array(z.string()).default([]),
+  pdfUrl: z.url().nullable().default(null),
+  pdfPublicId: z.string().trim().max(300).nullable().default(null),
 });
 
 export const eventPatchSchema = z.object({
@@ -93,4 +96,6 @@ export const eventPatchSchema = z.object({
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve ser no formato YYYY-MM-DD").optional(),
   scope: z.enum(["global", "groups"]).optional(),
   groupIds: z.array(z.string()).optional(),
+  pdfUrl: z.url().nullable().optional(),
+  pdfPublicId: z.string().trim().max(300).nullable().optional(),
 });

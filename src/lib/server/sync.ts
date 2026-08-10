@@ -3,7 +3,7 @@ import { FieldValue, type Transaction } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import type { ChangeEntity, ChangeOperation } from "@/types/domain";
 
-export const SYNC_SCHEMA_VERSION = 1;
+export const SYNC_SCHEMA_VERSION = 2;
 
 export function newVersion() {
   return `${Date.now().toString(36)}_${randomUUID()}`;

@@ -33,9 +33,10 @@ export function NavHeader() {
   const navItems = [
     { label: "Início", href: "/" },
     { label: "Membros", href: "/members" },
-    { label: "Aniversários", href: "/birthdays" },
+    { label: "Semana", href: "/birthdays" },
+    { label: "Agenda", href: "/agenda" },
     ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups" }] : []),
-    ...(canManageEvents ? [{ label: "Eventos", href: "/admin/events" }] : []),
+    ...(canManageEvents ? [{ label: "Gerenciar agenda", href: "/admin/events" }] : []),
   ];
 
 

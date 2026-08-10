@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Timestamp, type DocumentSnapshot, type Query } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
-import { datePartsInSaoPaulo } from "@/lib/date";
 import { ApiError, authenticate, errorResponse, type AuthenticatedActor } from "@/lib/server/auth";
 
 export const runtime = "nodejs";
@@ -38,7 +37,6 @@ function canRead(actor: AuthenticatedActor, entity: Entity, snapshot: DocumentSn
 }
 
 async function fullSnapshot(actor: AuthenticatedActor) {
-  const today = datePartsInSaoPaulo().isoDate;
   const groupIds = Array.isArray(actor.groupIds) ? actor.groupIds : [];
 
   let userDocs: DocumentSnapshot[] = [];
@@ -70,8 +68,6 @@ async function fullSnapshot(actor: AuthenticatedActor) {
     const snap = await adminDb.collection("events").get();
     eventDocs = snap.docs.filter((doc) => {
       const data = doc.data();
-      const eventDate = String(data.eventDate || "");
-      if (eventDate < today) return false;
       if (actor.role === "admin") return true;
       if (data.scope === "global") return true;
       return (data.groupIds ?? []).some((id: string) => groupIds.includes(id));

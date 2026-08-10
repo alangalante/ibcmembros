@@ -6,7 +6,7 @@ import { PwaRegister } from "@/components/pwa-register";
 
 export const metadata: Metadata = {
   title: "IBC Membros",
-  description: "Gestão de membros, grupos e eventos da igreja",
+  description: "Gestão de membros, grupos e agenda da igreja",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.ico",

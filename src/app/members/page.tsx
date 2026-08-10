@@ -46,6 +46,7 @@ export default function MembersDirectoryPage() {
     type: "member" as "member" | "visitor",
     conversionDate: "",
     conversionReason: "",
+    password: "",
   });
   const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
@@ -63,6 +64,7 @@ export default function MembersDirectoryPage() {
     birthDate: "",
     conversionDate: "",
     conversionReason: "",
+    accessPassword: "",
   });
   const [editError, setEditError] = useState("");
   const [editLoading, setEditLoading] = useState(false);
@@ -119,6 +121,7 @@ export default function MembersDirectoryPage() {
         type: "member",
         conversionDate: "",
         conversionReason: "",
+        password: "",
       });
       await offline.refresh();
     } catch (err) {
@@ -151,6 +154,7 @@ export default function MembersDirectoryPage() {
       birthDate: "",
       conversionDate: "",
       conversionReason: "",
+      accessPassword: "",
     });
 
     try {
@@ -206,6 +210,7 @@ export default function MembersDirectoryPage() {
             conversionDate: editForm.conversionDate || null,
             conversionReason: editForm.conversionReason || null,
           },
+          ...(editForm.accessPassword ? { accessPassword: editForm.accessPassword } : {}),
         }),
       });
 
@@ -436,6 +441,21 @@ export default function MembersDirectoryPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Senha de acesso *</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  placeholder="Mínimo de 6 caracteres"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">O telefone e esta senha serão usados no primeiro acesso.</p>
+              </div>
+
               <div className="mt-6 flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -550,6 +570,20 @@ export default function MembersDirectoryPage() {
                 <label htmlFor="activeCheck" className="text-sm font-semibold text-slate-800">
                   Cadastro Ativo
                 </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Nova senha de acesso</label>
+                <input
+                  type="password"
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={editForm.accessPassword}
+                  onChange={(e) => setEditForm({ ...editForm, accessPassword: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
+                  placeholder="Deixe em branco para não alterar"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">Também cria o acesso de cadastros antigos que ainda não conseguem entrar.</p>
               </div>
 
               <div className="mt-6 flex justify-end gap-2 pt-2">

@@ -10,6 +10,7 @@ import { PullToRefresh } from "./pull-to-refresh";
 import { NavHeader } from "./nav-header";
 import { MemberDetailModal } from "./member-detail-modal";
 import { formatWhatsAppLink } from "@/lib/phone-auth";
+import { todayIso } from "@/lib/agenda";
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -31,9 +32,11 @@ export function Dashboard() {
   const profile = offline.users.find((item) => item.id === user.uid);
   const groups = offline.groups.filter((item) => profile?.groupIds.includes(item.id));
   const userGroupIds = profile?.groupIds || [];
+  const today = todayIso();
   const events = offline.events
-    .filter((ev) => ev.scope === "global" || (ev.groupIds || []).some((gId) => userGroupIds.includes(gId)))
+    .filter((ev) => ev.eventDate === today && (ev.scope === "global" || (ev.groupIds || []).some((gId) => userGroupIds.includes(gId))))
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  const birthdays = offline.users.filter((person) => person.active && person.birthMonthDay === today.slice(5));
 
   const selectedGroup = offline.groups.find((g) => g.id === selectedGroupId);
   const groupMembers = selectedGroup
@@ -62,7 +65,7 @@ export function Dashboard() {
           {!pushActivated && (
             <section className="mt-2 rounded-2xl bg-emerald-800 p-5 text-white shadow-xs">
               <p className="font-semibold">Não perca nenhuma celebração</p>
-              <p className="mt-1 text-xs text-emerald-100">Receba avisos de aniversários e eventos dos seus grupos.</p>
+              <p className="mt-1 text-xs text-emerald-100">Receba avisos de aniversários e agendas dos seus grupos.</p>
               <button onClick={activatePush} className="mt-4 rounded-xl bg-white px-4 py-2 text-xs font-bold text-emerald-950 shadow-sm active:bg-slate-100">
                 Ativar notificações
               </button>
@@ -94,10 +97,16 @@ export function Dashboard() {
           </section>
 
           <section className="mt-7">
-            <h2 className="text-lg font-bold text-slate-900">Próximos eventos</h2>
+            <h2 className="text-lg font-bold text-slate-900">Agenda do dia</h2>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {events.length ? (
-                events.map((event) => (
+              {birthdays.map((person) => (
+                <article key={`birthday-${person.id}`} className={`rounded-2xl border p-4 shadow-2xs ${person.groupIds.some((id) => userGroupIds.includes(id)) ? "border-amber-300 bg-amber-50" : "border-slate-100 bg-white"}`}>
+                  <p className="text-xs font-bold uppercase tracking-wide text-pink-700">🎂 Aniversário</p>
+                  <h3 className="mt-1 font-semibold text-sm text-slate-900">{person.name}</h3>
+                  {person.groupIds.some((id) => userGroupIds.includes(id)) && <p className="mt-1 text-[10px] font-bold text-amber-800">⭐ Pessoa do seu grupo</p>}
+                </article>
+              ))}
+              {events.map((event) => (
                   <article key={event.id} className="rounded-2xl bg-white p-4 shadow-2xs border border-slate-100">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
@@ -110,10 +119,10 @@ export function Dashboard() {
                     <h3 className="mt-1 font-semibold text-sm text-slate-900">{event.title}</h3>
                     <p className="mt-1 text-xs text-slate-600 line-clamp-2">{event.description}</p>
                   </article>
-                ))
-              ) : (
+                ))}
+              {!events.length && !birthdays.length && (
                 <p className="col-span-full text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">
-                  Nenhum evento agendado no momento.
+                  Nenhum aniversário ou agenda para hoje.
                 </p>
               )}
             </div>

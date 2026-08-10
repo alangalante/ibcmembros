@@ -15,16 +15,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = eventSchema.safeParse(body);
     if (!parsed.success) {
-      throw new ApiError(400, parsed.error.issues[0]?.message ?? "Dados do evento inválidos");
+      throw new ApiError(400, parsed.error.issues[0]?.message ?? "Dados da agenda inválidos");
     }
 
-    const { title, description, startsAtIso, eventDate, scope, groupIds } = parsed.data;
+    const { title, description, startsAtIso, eventDate, scope, groupIds, pdfUrl, pdfPublicId } = parsed.data;
 
     // Líder só pode criar evento para grupo que ele lidera
     if (actor.role === "leader") {
-      if (scope === "global") throw new ApiError(403, "Líderes não podem criar eventos globais");
+      if (scope === "global") throw new ApiError(403, "Líderes não podem criar agendas globais");
       const isLeaderOfAll = groupIds.every((id) => actor.groupIds.includes(id));
-      if (!isLeaderOfAll) throw new ApiError(403, "Líder só pode criar eventos para seus próprios grupos");
+      if (!isLeaderOfAll) throw new ApiError(403, "Líder só pode criar agendas para seus próprios grupos");
     }
 
     const eventRef = adminDb.collection("events").doc();
@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
         timezone: "America/Sao_Paulo",
         scope,
         groupIds: scope === "global" ? [] : groupIds,
+        pdfUrl,
+        pdfPublicId,
         createdBy: actor.uid,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),

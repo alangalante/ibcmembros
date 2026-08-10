@@ -73,6 +73,8 @@ export interface ChurchEvent {
   timezone: "America/Sao_Paulo";
   scope: EventScope;
   groupIds: string[];
+  pdfUrl: string | null;
+  pdfPublicId: string | null;
   createdBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;

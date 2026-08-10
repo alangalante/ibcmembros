@@ -5,6 +5,7 @@ import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
 import { ConfirmModal } from "@/components/confirm-modal";
+import { uploadAgendaPdf } from "@/lib/pdf";
 
 export default function AdminEventsPage() {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function AdminEventsPage() {
   });
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [createPdf, setCreatePdf] = useState<File | null>(null);
 
   // Modal Editar Evento
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export default function AdminEventsPage() {
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
+  const [editPdf, setEditPdf] = useState<File | null>(null);
 
   // Modal Confirmação de Exclusão
   const [deleteTargetEventId, setDeleteTargetEventId] = useState<string | null>(null);
@@ -68,6 +71,8 @@ export default function AdminEventsPage() {
 
     try {
       const token = await user?.getIdToken();
+      if (!token) throw new Error("Sessão expirada");
+      const pdf = createPdf ? await uploadAgendaPdf(createPdf, token) : { pdfUrl: null, pdfPublicId: null };
       const startsAtIso = new Date(`${createForm.eventDate}T${createForm.time}:00-03:00`).toISOString();
 
       const res = await fetch("/api/admin/events", {
@@ -83,13 +88,15 @@ export default function AdminEventsPage() {
           startsAtIso,
           scope: createForm.scope,
           groupIds: createForm.scope === "global" ? [] : createForm.groupIds,
+          ...pdf,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao criar evento");
+      if (!res.ok) throw new Error(data.error || "Erro ao criar agenda");
 
       setShowCreateModal(false);
+      setCreatePdf(null);
       setCreateForm({
         title: "",
         description: "",
@@ -100,7 +107,7 @@ export default function AdminEventsPage() {
       });
       await offline.refresh();
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Falha ao cadastrar evento");
+      setCreateError(err instanceof Error ? err.message : "Falha ao cadastrar agenda");
     } finally {
       setCreateLoading(false);
     }
@@ -132,6 +139,7 @@ export default function AdminEventsPage() {
       groupIds: ev.groupIds || [],
     });
     setEditError("");
+    setEditPdf(null);
   }
 
   async function handleEditEvent(e: React.FormEvent) {
@@ -142,6 +150,9 @@ export default function AdminEventsPage() {
 
     try {
       const token = await user?.getIdToken();
+      if (!token) throw new Error("Sessão expirada");
+      const current = offline.events.find((item) => item.id === editingEventId);
+      const pdf = editPdf ? await uploadAgendaPdf(editPdf, token) : { pdfUrl: current?.pdfUrl ?? null, pdfPublicId: current?.pdfPublicId ?? null };
       const startsAtIso = new Date(`${editForm.eventDate}T${editForm.time}:00-03:00`).toISOString();
 
       const res = await fetch(`/api/admin/events/${editingEventId}`, {
@@ -157,16 +168,17 @@ export default function AdminEventsPage() {
           startsAtIso,
           scope: editForm.scope,
           groupIds: editForm.scope === "global" ? [] : editForm.groupIds,
+          ...pdf,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao atualizar evento");
+      if (!res.ok) throw new Error(data.error || "Erro ao atualizar agenda");
 
       setEditingEventId(null);
       await offline.refresh();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : "Falha ao salvar evento");
+      setEditError(err instanceof Error ? err.message : "Falha ao salvar agenda");
     } finally {
       setEditLoading(false);
     }
@@ -184,12 +196,12 @@ export default function AdminEventsPage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Erro ao excluir evento");
+        throw new Error(data.error || "Erro ao excluir agenda");
       }
       setDeleteTargetEventId(null);
       await offline.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao excluir evento");
+      alert(err instanceof Error ? err.message : "Falha ao excluir agenda");
     } finally {
       setDeleteLoading(false);
     }
@@ -201,14 +213,14 @@ export default function AdminEventsPage() {
       <main className="mx-auto max-w-lg md:max-w-4xl lg:max-w-6xl px-4 pt-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Gestão de Eventos</h1>
-            <p className="text-xs text-slate-500">{events.length} eventos programados</p>
+            <h1 className="text-2xl font-bold">Gestão da Agenda</h1>
+            <p className="text-xs text-slate-500">{events.length} itens programados</p>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
             className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
           >
-            + Novo Evento
+            + Nova Agenda
           </button>
         </div>
 
@@ -263,7 +275,7 @@ export default function AdminEventsPage() {
             })
           ) : (
             <div className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500">
-              Nenhum evento programado.
+              Nenhuma agenda programada.
             </div>
           )}
         </div>
@@ -273,8 +285,8 @@ export default function AdminEventsPage() {
       <ConfirmModal
         isOpen={Boolean(deleteTargetEventId)}
         title="IBC Membros"
-        message="Tem certeza que deseja excluir permanentemente este evento?"
-        confirmText={deleteLoading ? "Excluindo…" : "Excluir Evento"}
+        message="Tem certeza que deseja excluir permanentemente esta agenda?"
+        confirmText={deleteLoading ? "Excluindo…" : "Excluir Agenda"}
         cancelText="Cancelar"
         isDanger={true}
         onConfirm={executeDeleteEvent}
@@ -285,12 +297,12 @@ export default function AdminEventsPage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
-            <h2 className="text-lg font-bold">Novo Evento</h2>
+            <h2 className="text-lg font-bold">Nova Agenda</h2>
             {createError && <p className="mt-2 text-xs font-semibold text-rose-700">{createError}</p>}
 
             <form onSubmit={handleCreateEvent} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700">Título do Evento *</label>
+                <label className="block text-xs font-bold text-slate-700">Título da Agenda *</label>
                 <input
                   type="text"
                   required
@@ -331,9 +343,11 @@ export default function AdminEventsPage() {
                   value={createForm.description}
                   onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
-                  placeholder="Informações adicionais do evento…"
+                  placeholder="Informações adicionais da agenda…"
                 />
               </div>
+
+              <div><label className="block text-xs font-bold text-slate-700">PDF (opcional, até 10 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setCreatePdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700">Alcance *</label>
@@ -386,7 +400,7 @@ export default function AdminEventsPage() {
                   disabled={createLoading}
                   className="rounded-xl bg-emerald-800 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
                 >
-                  {createLoading ? "Cadastrando…" : "Criar Evento"}
+                  {createLoading ? "Cadastrando…" : "Criar Agenda"}
                 </button>
               </div>
             </form>
@@ -398,12 +412,12 @@ export default function AdminEventsPage() {
       {editingEventId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl max-h-[90dvh] overflow-y-auto">
-            <h2 className="text-lg font-bold">Editar Evento</h2>
+            <h2 className="text-lg font-bold">Editar Agenda</h2>
             {editError && <p className="mt-2 text-xs font-semibold text-rose-700">{editError}</p>}
 
             <form onSubmit={handleEditEvent} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700">Título do Evento *</label>
+                <label className="block text-xs font-bold text-slate-700">Título da Agenda *</label>
                 <input
                   type="text"
                   required
@@ -445,6 +459,8 @@ export default function AdminEventsPage() {
                   className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                 />
               </div>
+
+              <div><label className="block text-xs font-bold text-slate-700">Substituir PDF (opcional, até 10 MB)</label><input type="file" accept="application/pdf,.pdf" onChange={(e) => setEditPdf(e.target.files?.[0] || null)} className="mt-1 w-full rounded-xl border border-slate-200 p-2 text-xs" /></div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700">Alcance *</label>

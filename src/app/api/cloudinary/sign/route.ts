@@ -14,9 +14,11 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.CLOUDINARY_API_KEY || "demo_key";
     const apiSecret = process.env.CLOUDINARY_API_SECRET || "demo_secret";
 
+    const body = await request.json().catch(() => ({})) as { kind?: string };
+    const isAgendaPdf = body.kind === "agenda-pdf";
     const timestamp = Math.floor(Date.now() / 1000);
-    const folder = `ibc_membros/profiles`;
-    const publicId = `user_${actor.uid}_${timestamp}`;
+    const folder = isAgendaPdf ? "ibc_membros/agenda" : "ibc_membros/profiles";
+    const publicId = isAgendaPdf ? `agenda_${actor.uid}_${timestamp}` : `user_${actor.uid}_${timestamp}`;
 
     // Cloudinary exige ordenação alfabética das chaves a serem assinadas
     const stringToSign = `folder=${folder}&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
       cloudName,
       folder,
       publicId,
+      resourceType: isAgendaPdf ? "raw" : "image",
     });
   } catch (error) {
     return errorResponse(error);

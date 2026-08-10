@@ -28,20 +28,13 @@ export async function POST(request: NextRequest) {
     }
 
     const authEmail = email || phoneToInternalEmail(phoneE164);
-    let targetUid: string;
-
-
-    if (password) {
-      const userRecord = await adminAuth.createUser({
-        email: authEmail,
-        password,
-        displayName: name,
-        disabled: false,
-      });
-      targetUid = userRecord.uid;
-    } else {
-      targetUid = adminDb.collection("users").doc().id;
-    }
+    const userRecord = await adminAuth.createUser({
+      email: authEmail,
+      password,
+      displayName: name,
+      disabled: false,
+    });
+    const targetUid = userRecord.uid;
 
 
 

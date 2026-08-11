@@ -7,6 +7,12 @@ import { recordAudit, recordChange } from "@/lib/server/sync";
 
 export const runtime = "nodejs";
 
+async function leaderOwnsGroups(uid: string, groupIds: string[]) {
+  if (!groupIds.length) return false;
+  const groups = await Promise.all(groupIds.map((id) => adminDb.collection("groups").doc(id).get()));
+  return groups.every((group) => group.exists && ((group.get("leaderIds") ?? []) as string[]).includes(uid));
+}
+
 export async function POST(request: NextRequest) {
   try {
     const actor = await authenticate(request);
@@ -19,11 +25,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { title, description, startsAtIso, eventDate, scope, groupIds, pdfUrl, pdfPublicId } = parsed.data;
+    if (scope === "groups" && !groupIds.length) throw new ApiError(400, "Selecione pelo menos um grupo");
 
     // Líder só pode criar evento para grupo que ele lidera
     if (actor.role === "leader") {
       if (scope === "global") throw new ApiError(403, "Líderes não podem criar agendas globais");
-      const isLeaderOfAll = groupIds.every((id) => actor.groupIds.includes(id));
+      const isLeaderOfAll = await leaderOwnsGroups(actor.uid, groupIds);
       if (!isLeaderOfAll) throw new ApiError(403, "Líder só pode criar agendas para seus próprios grupos");
     }
 

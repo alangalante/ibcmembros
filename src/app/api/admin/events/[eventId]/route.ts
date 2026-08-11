@@ -7,6 +7,12 @@ import { recordAudit, recordChange } from "@/lib/server/sync";
 
 export const runtime = "nodejs";
 
+async function leaderOwnsGroups(uid: string, groupIds: string[]) {
+  if (!groupIds.length) return false;
+  const groups = await Promise.all(groupIds.map((id) => adminDb.collection("groups").doc(id).get()));
+  return groups.every((group) => group.exists && ((group.get("leaderIds") ?? []) as string[]).includes(uid));
+}
+
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   try {
     const actor = await authenticate(request);
@@ -19,15 +25,24 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
       throw new ApiError(400, parsed.error.issues[0]?.message ?? "Dados inválidos");
     }
 
+    const eventRef = adminDb.collection("events").doc(eventId);
+    const existing = await eventRef.get();
+    if (!existing.exists) throw new ApiError(404, "Agenda não encontrada");
+    const existingData = existing.data()!;
+    const targetScope = parsed.data.scope ?? existingData.scope;
+    const targetGroupIds = (parsed.data.groupIds ?? existingData.groupIds ?? []) as string[];
+    if (targetScope === "groups" && !targetGroupIds.length) throw new ApiError(400, "Selecione pelo menos um grupo");
+    if (actor.role === "leader") {
+      const currentGroupIds = (existingData.groupIds ?? []) as string[];
+      if (existingData.scope === "global" || targetScope === "global" || !(await leaderOwnsGroups(actor.uid, currentGroupIds)) || !(await leaderOwnsGroups(actor.uid, targetGroupIds))) {
+        throw new ApiError(403, "Líder só pode editar agendas dos grupos que lidera");
+      }
+    }
+
     await adminDb.runTransaction(async (transaction) => {
-      const eventRef = adminDb.collection("events").doc(eventId);
       const eventDoc = await transaction.get(eventRef);
       if (!eventDoc.exists) throw new ApiError(404, "Agenda não encontrada");
-
       const current = eventDoc.data()!;
-      if (actor.role === "leader" && current.createdBy !== actor.uid) {
-        throw new ApiError(403, "Líder só pode editar suas próprias agendas");
-      }
 
       const updateData: Record<string, unknown> = {
         ...parsed.data,
@@ -64,15 +79,18 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     requireLeaderOrAdmin(actor);
     const { eventId } = await context.params;
 
+    const eventRef = adminDb.collection("events").doc(eventId);
+    const existing = await eventRef.get();
+    if (!existing.exists) throw new ApiError(404, "Agenda não encontrada");
+    const existingData = existing.data()!;
+    if (actor.role === "leader" && (existingData.scope === "global" || !(await leaderOwnsGroups(actor.uid, (existingData.groupIds ?? []) as string[])))) {
+      throw new ApiError(403, "Líder só pode excluir agendas dos grupos que lidera");
+    }
+
     await adminDb.runTransaction(async (transaction) => {
-      const eventRef = adminDb.collection("events").doc(eventId);
       const eventDoc = await transaction.get(eventRef);
       if (!eventDoc.exists) throw new ApiError(404, "Agenda não encontrada");
-
       const current = eventDoc.data()!;
-      if (actor.role === "leader" && current.createdBy !== actor.uid) {
-        throw new ApiError(403, "Líder só pode excluir suas próprias agendas");
-      }
 
       transaction.delete(eventRef);
 

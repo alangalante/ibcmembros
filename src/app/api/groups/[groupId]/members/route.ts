@@ -30,7 +30,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ gr
       const leaderIds = parsed.data.isLeader ? [...new Set([...leaders, parsed.data.userId])] : leaders;
 
       transaction.update(groupRef, { participantIds, leaderIds, updatedAt: FieldValue.serverTimestamp() });
-      transaction.update(userRef, { groupIds: FieldValue.arrayUnion(groupId), updatedAt: FieldValue.serverTimestamp() });
+      transaction.update(userRef, {
+        groupIds: FieldValue.arrayUnion(groupId),
+        ...(parsed.data.isLeader && user.get("role") !== "admin" ? { role: "leader" } : {}),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
       transaction.set(adminDb.collection("groupMemberships").doc(`${groupId}_${parsed.data.userId}`), {
         groupId, userId: parsed.data.userId, isLeader: parsed.data.isLeader, active: true,
         joinedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
@@ -64,6 +68,9 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
       const leaders = (group.get("leaderIds") ?? []) as string[];
       const canManage = actor.role === "admin" || leaders.includes(actor.uid);
       if (!canManage) throw new ApiError(403, "Você não tem permissão para gerenciar este grupo");
+      if (actor.role === "leader" && leaders.includes(userId)) {
+        throw new ApiError(403, "Líderes não podem remover líderes do grupo");
+      }
 
       const participantIds = ((group.get("participantIds") ?? []) as string[]).filter((id) => id !== userId);
       const leaderIds = leaders.filter((id) => id !== userId);

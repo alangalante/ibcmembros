@@ -50,11 +50,26 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedA
     throw new ApiError(403, "Cadastro inativo. Entre em contato com a liderança da igreja.");
   }
 
+  const storedRole = (profile.get("role") as AccessRole) || "common";
+  const storedGroupIds = (profile.get("groupIds") ?? []) as string[];
+  let effectiveRole = storedRole;
+  let effectiveGroupIds = storedGroupIds;
+
+  // Compatibilidade com líderes antigos: a fonte de verdade da liderança é o
+  // próprio grupo. Não exige migração prévia de users.role ou users.groupIds.
+  if (storedRole !== "admin") {
+    const ledGroups = await adminDb.collection("groups").where("leaderIds", "array-contains", decoded.uid).get();
+    if (!ledGroups.empty) {
+      effectiveRole = "leader";
+      effectiveGroupIds = [...new Set([...storedGroupIds, ...ledGroups.docs.map((group) => group.id)])];
+    }
+  }
+
   return {
     uid: decoded.uid,
-    role: (profile.get("role") as AccessRole) || "common",
+    role: effectiveRole,
     active: true,
-    groupIds: (profile.get("groupIds") ?? []) as string[],
+    groupIds: effectiveGroupIds,
   };
 }
 

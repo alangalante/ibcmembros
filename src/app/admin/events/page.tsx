@@ -15,7 +15,7 @@ export default function AdminEventsPage() {
 
   const currentUser = offline.users.find((u) => u.id === user?.uid);
   const isAdmin = currentUser?.role === "admin" || user?.email?.startsWith("22999947318");
-  const isLeader = currentUser?.role === "leader";
+  const isLeader = currentUser?.role === "leader" || offline.groups.some((group) => group.leaderIds.includes(user?.uid || ""));
   const canManage = isAdmin || isLeader;
 
   // Modal Criar Evento
@@ -63,9 +63,10 @@ export default function AdminEventsPage() {
     );
   }
 
-  const userGroupIds = currentUser?.groupIds || [];
+  const ledGroups = offline.groups.filter((group) => group.leaderIds.includes(user?.uid || ""));
+  const ledGroupIds = ledGroups.map((group) => group.id);
   const events = offline.events
-    .filter((ev) => isAdmin || ev.scope === "global" || (ev.groupIds || []).some((gId) => userGroupIds.includes(gId)))
+    .filter((ev) => isAdmin || (ev.scope === "groups" && ev.groupIds.length > 0 && ev.groupIds.every((gId) => ledGroupIds.includes(gId))))
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
 
   async function handleCreateEvent(e: React.FormEvent) {
@@ -106,7 +107,7 @@ export default function AdminEventsPage() {
         description: "",
         eventDate: "",
         time: "19:00",
-        scope: "global",
+        scope: isAdmin ? "global" : "groups",
         groupIds: [],
       });
       await offline.refresh();
@@ -239,8 +240,12 @@ export default function AdminEventsPage() {
           <div className="flex flex-wrap justify-end gap-2">
             {isAdmin && <button onClick={testTodayNotifications} disabled={notificationTestLoading} className="rounded-xl border border-emerald-700 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 disabled:opacity-60">{notificationTestLoading ? "Enviando…" : "Testar notificações de hoje"}</button>}
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
+              onClick={() => {
+                if (isLeader) setCreateForm((current) => ({ ...current, scope: "groups", groupIds: current.groupIds.filter((id) => ledGroupIds.includes(id)) }));
+                setShowCreateModal(true);
+              }}
+              disabled={isLeader && !ledGroups.length}
+              className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900 disabled:opacity-50"
             >
               + Nova Agenda
             </button>
@@ -258,7 +263,7 @@ export default function AdminEventsPage() {
                 .filter(Boolean)
                 .join(", ");
 
-              const canEditOrDelete = isAdmin || ev.createdBy === user?.uid;
+              const canEditOrDelete = isAdmin || (ev.scope === "groups" && ev.groupIds.length > 0 && ev.groupIds.every((groupId) => ledGroupIds.includes(groupId)));
 
               return (
                 <article key={ev.id} className={`rounded-2xl border p-4 shadow-xs transition ${passed ? "border-slate-200 bg-slate-100 opacity-50 grayscale" : "border-slate-100 bg-white"}`}>
@@ -392,7 +397,7 @@ export default function AdminEventsPage() {
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Selecione os Grupos *</label>
                   <div className="mt-1 space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2">
-                    {offline.groups.map((g) => (
+                    {(isAdmin ? offline.groups : ledGroups).map((g) => (
                       <label key={g.id} className="flex items-center gap-2 text-xs text-slate-800">
                         <input
                           type="checkbox"
@@ -505,7 +510,7 @@ export default function AdminEventsPage() {
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Selecione os Grupos *</label>
                   <div className="mt-1 space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2">
-                    {offline.groups.map((g) => (
+                    {(isAdmin ? offline.groups : ledGroups).map((g) => (
                       <label key={g.id} className="flex items-center gap-2 text-xs text-slate-800">
                         <input
                           type="checkbox"

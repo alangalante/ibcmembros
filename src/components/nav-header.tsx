@@ -19,7 +19,7 @@ export function NavHeader() {
   if (!user) return null;
   const profile = offline.users.find((item) => item.id === user.uid);
   const isAdmin = profile?.role === "admin";
-  const isLeader = profile?.role === "leader";
+  const isLeader = profile?.role === "leader" || offline.groups.some((group) => group.leaderIds.includes(user.uid));
   const canManageEvents = isAdmin || isLeader;
 
   const displayName = getCleanDisplayName(profile?.name, user);
@@ -34,7 +34,7 @@ export function NavHeader() {
     { label: "Início", href: "/", icon: "⌂" },
     { label: "Agenda", href: "/agenda", icon: "▣" },
     { label: "Membros", href: "/members", icon: "♙" },
-    ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups", icon: "♧" }] : []),
+    ...(isAdmin || isLeader ? [{ label: "Grupos", href: "/admin/groups", icon: "♧" }] : []),
     ...(canManageEvents ? [{ label: "Gestão", href: "/admin/events", icon: "⚙" }] : []),
   ];
 

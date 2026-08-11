@@ -12,6 +12,8 @@ export default function AdminGroupsPage() {
 
   const currentUser = offline.users.find((u) => u.id === user?.uid);
   const isAdmin = currentUser?.role === "admin";
+  const isLeader = currentUser?.role === "leader" || offline.groups.some((group) => group.leaderIds.includes(user?.uid || ""));
+  const canManageGroups = isAdmin || isLeader;
 
   // Modal Criar Grupo
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -36,19 +38,19 @@ export default function AdminGroupsPage() {
   const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
 
 
-  if (!isAdmin) {
+  if (!canManageGroups) {
 
     return (
       <div className="min-h-dvh bg-slate-50 text-slate-900">
         <NavHeader />
         <main className="mx-auto max-w-lg p-6 text-center">
-          <p className="text-sm font-semibold text-rose-700">Acesso Restrito a Administradores</p>
+          <p className="text-sm font-semibold text-rose-700">Acesso restrito a líderes e administradores</p>
         </main>
       </div>
     );
   }
 
-  const activeGroups = offline.groups;
+  const activeGroups = offline.groups.filter((group) => isAdmin || group.leaderIds.includes(user?.uid || ""));
   const editingGroup = activeGroups.find((g) => g.id === editingGroupId);
 
   async function handleCreateGroup(e: React.FormEvent) {
@@ -191,12 +193,12 @@ export default function AdminGroupsPage() {
             <h1 className="text-2xl font-bold">Grupos de Comunhão</h1>
             <p className="text-xs text-slate-500">{activeGroups.length} grupos cadastrados</p>
           </div>
-          <button
+          {isAdmin && <button
             onClick={() => setShowCreateModal(true)}
             className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
           >
             + Novo Grupo
-          </button>
+          </button>}
         </div>
 
         {/* Lista de Grupos */}
@@ -299,7 +301,7 @@ export default function AdminGroupsPage() {
             {editError && <p className="mt-2 text-xs font-semibold text-rose-700">{editError}</p>}
 
 
-            <form onSubmit={handleEditGroup} className="mt-4 space-y-3">
+            {isAdmin && <form onSubmit={handleEditGroup} className="mt-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700">Nome do Grupo</label>
                 <input
@@ -343,7 +345,7 @@ export default function AdminGroupsPage() {
                   {editLoading ? "Salvando…" : "Atualizar Dados Básicos"}
                 </button>
               </div>
-            </form>
+            </form>}
 
             {/* Lista de Membros Atualmente Vinculados */}
             <div className="mt-6 border-t border-slate-100 pt-4">
@@ -357,7 +359,7 @@ export default function AdminGroupsPage() {
                     .filter((u): u is NonNullable<typeof u> => Boolean(u))
                     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
                     .map((member) => {
-                      const isLeader = editingGroup.leaderIds.includes(member.id);
+                      const memberIsLeader = editingGroup.leaderIds.includes(member.id);
                       return (
                         <div key={member.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-2.5 border border-slate-100">
                           <div className="flex items-center gap-2.5">
@@ -366,17 +368,18 @@ export default function AdminGroupsPage() {
                             </div>
                             <div>
                               <p className="text-xs font-bold text-slate-900">{member.name}</p>
-                              <span className={`text-[10px] font-bold ${isLeader ? "text-amber-700" : "text-slate-500"}`}>
-                                {isLeader ? "⭐ Líder do Grupo" : "Membro"}
+                              <span className={`text-[10px] font-bold ${memberIsLeader ? "text-amber-700" : "text-slate-500"}`}>
+                                {memberIsLeader ? "⭐ Líder do Grupo" : "Membro"}
                               </span>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => setRemoveMemberUid(member.id)}
-                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                            disabled={!isAdmin && memberIsLeader}
+                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:border-slate-200 disabled:text-slate-400"
                           >
-                            Desvincular
+                            {!isAdmin && memberIsLeader ? "Líder" : "Desvincular"}
                           </button>
                         </div>
                       );
@@ -412,7 +415,7 @@ export default function AdminGroupsPage() {
 
 
                 <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                  {isAdmin ? <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                     <input
                       type="checkbox"
                       checked={isLeaderRoleCheck}
@@ -420,7 +423,7 @@ export default function AdminGroupsPage() {
                       className="size-4 rounded border-slate-300 text-emerald-800"
                     />
                     Promover como Líder do Grupo
-                  </label>
+                  </label> : <span className="text-[11px] text-slate-500">O participante será adicionado como membro.</span>}
 
                   <button
                     type="submit"
@@ -460,4 +463,3 @@ export default function AdminGroupsPage() {
     </div>
   );
 }
-

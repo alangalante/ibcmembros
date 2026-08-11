@@ -5,6 +5,7 @@ import { activeUserIds, sendPush } from "@/lib/notifications";
 import crypto from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { recordChange } from "@/lib/server/sync";
+import { formatWhatsAppLink } from "@/lib/phone-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,13 +52,20 @@ export async function GET(request: NextRequest) {
     activeUserIds(),
   ]);
 
-  const birthdayResults = birthdays.empty ? [] : [await sendPush({
+  const birthdayResults = await Promise.all(birthdays.docs.map((birthday) => {
+    const name = String(birthday.get("name"));
+    const phone = String(birthday.get("phoneE164") || "");
+    const greeting = encodeURIComponent(`Feliz aniversário, ${name}!`);
+    const link = phone ? `${formatWhatsAppLink(phone)}?text=${greeting}` : `${request.nextUrl.origin}/agenda`;
+    return sendPush({
       userIds: everyone,
-      title: birthdays.size === 1 ? `Hoje é aniversário de ${birthdays.docs[0].get("name")} 🎉` : `${birthdays.size} aniversariantes hoje 🎉`,
-      body: birthdays.size === 1 ? "Toque para ver e enviar uma mensagem." : "Toque para ver quem está celebrando.",
-      link: `${request.nextUrl.origin}/birthdays`,
-      data: { kind: "birthday", date: isoDate },
-    })];
+      title: `Aniversário de ${name} 🎉`,
+      body: "Toque para enviar uma mensagem pelo WhatsApp.",
+      link,
+      image: birthday.get("photoUrl") || null,
+      data: { kind: phone ? "birthday" : "birthday-agenda", birthdayUserId: birthday.id, date: isoDate },
+    });
+  }));
 
   const eventResults = [];
   for (const event of events.docs) {
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
       title: String(data.title),
       body: String(data.description || "Agenda de hoje"),
       link: `${request.nextUrl.origin}/events/${event.id}`,
-      data: { kind: "event", eventId: event.id },
+      data: { kind: "agenda", eventId: event.id },
     }));
   }
 

@@ -23,6 +23,16 @@ export function birthdayDate(monthDay: string, year: number) {
   return `${year}-${monthDay}`;
 }
 
+export function addDaysIso(iso: string, days: number) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return isoFromDate(date);
+}
+
+export function daysBetween(start: string, end: string) {
+  return Math.round((new Date(`${end}T12:00:00`).getTime() - new Date(`${start}T12:00:00`).getTime()) / 86_400_000) + 1;
+}
+
 export function formatAgendaDate(iso: string, options?: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("pt-BR", options || { weekday: "long", day: "2-digit", month: "long" })
     .format(new Date(`${iso}T12:00:00`));

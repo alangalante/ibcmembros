@@ -7,9 +7,9 @@ import { NavHeader } from "@/components/nav-header";
 import { MemberDetailModal } from "@/components/member-detail-modal";
 import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
-import { birthdayDate, formatAgendaDate, todayIso, weekBounds } from "@/lib/agenda";
+import { addDaysIso, birthdayDate, daysBetween, formatAgendaDate, todayIso, weekBounds } from "@/lib/agenda";
 
-type ViewMode = "week" | "month";
+type ViewMode = "week" | "month" | "period";
 
 export default function AgendaPage() {
   const { user } = useAuth();
@@ -17,6 +17,8 @@ export default function AgendaPage() {
   const today = todayIso();
   const [mode, setMode] = useState<ViewMode>("week");
   const [month, setMonth] = useState(today.slice(0, 7));
+  const [periodStart, setPeriodStart] = useState(today);
+  const [periodEnd, setPeriodEnd] = useState(addDaysIso(today, 6));
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const profile = offline.users.find((item) => item.id === user?.uid);
   const groupIds = profile?.groupIds || [];
@@ -37,6 +39,17 @@ export default function AgendaPage() {
     const agendas = visibleEvents.filter((event) => event.eventDate.startsWith(month)).map((event) => ({ id: event.id, date: event.eventDate, title: event.title, kind: "agenda" as const, pdfUrl: event.pdfUrl }));
     return [...birthdays, ...agendas].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "pt-BR"));
   }, [month, offline.users, visibleEvents]);
+  const periodLength = daysBetween(periodStart, periodEnd);
+  const validPeriod = periodEnd >= periodStart && periodLength <= 30;
+  const periodItems = useMemo(() => {
+    if (!validPeriod) return [];
+    const years = Array.from(new Set([Number(periodStart.slice(0, 4)), Number(periodEnd.slice(0, 4))]));
+    const birthdays = offline.users.flatMap((person) => years.map((year) => ({ id: `birthday-${person.id}-${year}`, userId: person.id, date: birthdayDate(person.birthMonthDay, year), title: person.name, kind: "birthday" as const }))).filter((item) => item.date >= periodStart && item.date <= periodEnd);
+    const agendas = visibleEvents.filter((event) => event.eventDate >= periodStart && event.eventDate <= periodEnd).map((event) => ({ id: event.id, date: event.eventDate, title: event.title, kind: "agenda" as const, pdfUrl: event.pdfUrl }));
+    return [...birthdays, ...agendas].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "pt-BR"));
+  }, [offline.users, periodEnd, periodStart, validPeriod, visibleEvents]);
+
+  const renderList = (items: typeof monthItems) => <div className="mt-5 space-y-3">{items.map((item) => { const passed = item.date < today; return <article key={item.id} className={`flex items-center justify-between gap-3 rounded-2xl border p-4 shadow-xs ${passed ? "border-slate-200 bg-slate-100 opacity-50 grayscale" : "border-slate-100 bg-white"}`}><button onClick={() => item.kind === "birthday" && setSelectedUid(item.userId)} className="text-left"><div className="flex items-center gap-2"><p className={`text-[11px] font-bold capitalize ${passed ? "text-slate-500" : "text-emerald-800"}`}>{formatAgendaDate(item.date)}</p>{passed && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-600">Já passou</span>}</div><h2 className="text-sm font-bold">{item.kind === "birthday" ? "🎂" : "📅"} {item.title}</h2></button>{item.kind === "agenda" && <div className="flex gap-2">{item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noreferrer" className={`text-xs font-bold ${passed ? "text-slate-600" : "text-rose-700"}`}>Ver PDF</a>}<Link href={`/events/${item.id}`} className={`text-xs font-bold ${passed ? "text-slate-600" : "text-emerald-800"}`}>Detalhes →</Link></div>}</article>; })}{!items.length && <p className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500">Nenhum item neste período.</p>}</div>;
 
   return <div className="min-h-dvh bg-slate-50 pb-24 text-slate-900">
     <NavHeader />
@@ -46,6 +59,7 @@ export default function AgendaPage() {
         <div className="flex rounded-xl bg-slate-200 p-1" role="tablist" aria-label="Visualização da agenda">
           <button onClick={() => setMode("week")} className={`rounded-lg px-4 py-2 text-xs font-bold ${mode === "week" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-600"}`}>Semana</button>
           <button onClick={() => setMode("month")} className={`rounded-lg px-4 py-2 text-xs font-bold ${mode === "month" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-600"}`}>Por mês</button>
+          <button onClick={() => setMode("period")} className={`rounded-lg px-4 py-2 text-xs font-bold ${mode === "period" ? "bg-white text-emerald-900 shadow-xs" : "text-slate-600"}`}>Período</button>
         </div>
       </div>
 
@@ -66,9 +80,16 @@ export default function AgendaPage() {
             </section>;
           })}
         </div>
+      </> : mode === "month" ? <>
+        <label className="mt-5 block w-full max-w-sm text-xs font-bold text-slate-700">Escolha o mês<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="mt-1 block h-12 w-full min-w-[260px] rounded-xl border border-slate-200 bg-white px-4 text-base" /></label>
+        {renderList(monthItems)}
       </> : <>
-        <label className="mt-5 block w-fit text-xs font-bold text-slate-700">Escolha o mês<input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="mt-1 block rounded-xl border border-slate-200 bg-white p-2.5 text-sm" /></label>
-        <div className="mt-5 space-y-3">{monthItems.map((item) => { const passed = item.date < today; return <article key={item.id} className={`flex items-center justify-between gap-3 rounded-2xl border p-4 shadow-xs ${passed ? "border-slate-200 bg-slate-100 opacity-50 grayscale" : "border-slate-100 bg-white"}`}><button onClick={() => item.kind === "birthday" && setSelectedUid(item.userId)} className="text-left"><div className="flex items-center gap-2"><p className={`text-[11px] font-bold capitalize ${passed ? "text-slate-500" : "text-emerald-800"}`}>{formatAgendaDate(item.date)}</p>{passed && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[9px] font-bold uppercase text-slate-600">Já passou</span>}</div><h2 className="text-sm font-bold">{item.kind === "birthday" ? "🎂" : "📅"} {item.title}</h2></button>{item.kind === "agenda" && <div className="flex gap-2">{item.pdfUrl && <a href={item.pdfUrl} target="_blank" rel="noreferrer" className={`text-xs font-bold ${passed ? "text-slate-600" : "text-rose-700"}`}>Ver PDF</a>}<Link href={`/events/${item.id}`} className={`text-xs font-bold ${passed ? "text-slate-600" : "text-emerald-800"}`}>Detalhes →</Link></div>}</article>; })}{!monthItems.length && <p className="rounded-2xl bg-white p-8 text-center text-sm text-slate-500">Nenhum item neste mês.</p>}</div>
+        <div className="mt-5 grid max-w-xl gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-bold text-slate-700">Data inicial<input type="date" value={periodStart} max={periodEnd} onChange={(event) => setPeriodStart(event.target.value)} className="mt-1 block h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base" /></label>
+          <label className="block text-xs font-bold text-slate-700">Data final<input type="date" value={periodEnd} min={periodStart} max={addDaysIso(periodStart, 29)} onChange={(event) => setPeriodEnd(event.target.value)} className="mt-1 block h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-base" /></label>
+        </div>
+        <p className={`mt-2 text-xs font-semibold ${validPeriod ? "text-slate-500" : "text-rose-700"}`}>{validPeriod ? `${periodLength} dia${periodLength === 1 ? "" : "s"} selecionado${periodLength === 1 ? "" : "s"} · máximo de 30 dias` : "Escolha um período válido de no máximo 30 dias."}</p>
+        {validPeriod && renderList(periodItems)}
       </>}
     </main>
     <MemberDetailModal userId={selectedUid} onClose={() => setSelectedUid(null)} />

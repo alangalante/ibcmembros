@@ -86,7 +86,7 @@ self.addEventListener("push", (event) => {
     badge: notification.badge || "/icons/icon-192.svg",
     image: notification.image,
     data: { link: data.link || "/" },
-    actions: [{ action: "open", title: data.kind === "birthday" ? "Abrir WhatsApp" : "Ver evento" }],
+    actions: [{ action: "open", title: data.kind === "birthday" ? "Enviar mensagem" : "Ver agenda" }],
   }));
 });
 
@@ -97,7 +97,7 @@ self.addEventListener("notificationclick", (event) => {
 
   try {
     const urlObj = new URL(rawLink, self.location.origin);
-    targetUrl = `${self.location.origin}${urlObj.pathname}${urlObj.search}`;
+    targetUrl = urlObj.href;
   } catch {
     targetUrl = self.location.origin;
   }
@@ -105,7 +105,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+        if (targetUrl.startsWith(self.location.origin) && client.url.startsWith(self.location.origin) && "focus" in client) {
           client.navigate(targetUrl);
           return client.focus();
         }
@@ -114,4 +114,3 @@ self.addEventListener("notificationclick", (event) => {
     })
   );
 });
-

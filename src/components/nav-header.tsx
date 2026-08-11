@@ -32,8 +32,8 @@ export function NavHeader() {
 
   const navItems = [
     { label: "Início", href: "/", icon: "⌂" },
-    { label: "Membros", href: "/members", icon: "♙" },
     { label: "Agenda", href: "/agenda", icon: "▣" },
+    { label: "Membros", href: "/members", icon: "♙" },
     ...(isAdmin ? [{ label: "Grupos", href: "/admin/groups", icon: "♧" }] : []),
     ...(canManageEvents ? [{ label: "Gestão", href: "/admin/events", icon: "⚙" }] : []),
   ];

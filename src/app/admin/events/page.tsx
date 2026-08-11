@@ -49,6 +49,8 @@ export default function AdminEventsPage() {
   // Modal Confirmação de Exclusão
   const [deleteTargetEventId, setDeleteTargetEventId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [notificationTestLoading, setNotificationTestLoading] = useState(false);
+  const [notificationTestStatus, setNotificationTestStatus] = useState("");
 
   if (!canManage) {
     return (
@@ -209,6 +211,22 @@ export default function AdminEventsPage() {
     }
   }
 
+  async function testTodayNotifications() {
+    setNotificationTestLoading(true);
+    setNotificationTestStatus("");
+    try {
+      const token = await user?.getIdToken();
+      const response = await fetch("/api/admin/notifications/test", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Falha ao disparar notificações");
+      setNotificationTestStatus(`Enviado: ${result.birthdays} aniversário(s) e ${result.agendas} agenda(s) de hoje.`);
+    } catch (error) {
+      setNotificationTestStatus(error instanceof Error ? error.message : "Falha ao disparar notificações");
+    } finally {
+      setNotificationTestLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
       <NavHeader />
@@ -218,13 +236,17 @@ export default function AdminEventsPage() {
             <h1 className="text-2xl font-bold">Gestão da Agenda</h1>
             <p className="text-xs text-slate-500">{events.length} itens programados</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
-          >
-            + Nova Agenda
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {isAdmin && <button onClick={testTodayNotifications} disabled={notificationTestLoading} className="rounded-xl border border-emerald-700 bg-white px-3.5 py-2 text-xs font-bold text-emerald-800 disabled:opacity-60">{notificationTestLoading ? "Enviando…" : "Testar notificações de hoje"}</button>}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="rounded-xl bg-emerald-800 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-900"
+            >
+              + Nova Agenda
+            </button>
+          </div>
         </div>
+        {notificationTestStatus && <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">{notificationTestStatus}</p>}
 
         {/* Lista de Eventos */}
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -36,7 +36,7 @@ export async function sendPush(input: PushInput) {
           icon: "/icons/icon-192.png",
           badge: "/icons/icon-192.png",
           ...(input.image ? { image: input.image } : {}),
-          actions: [{ action: "open", title: input.data?.kind === "birthday" ? "Enviar mensagem" : "Ver agenda" }],
+          actions: [{ action: "open", title: input.data?.kind === "birthday" ? "Enviar WhatsApp" : "Ver agenda" }],
         },
       },
     };

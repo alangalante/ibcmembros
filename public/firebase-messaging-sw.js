@@ -86,7 +86,7 @@ self.addEventListener("push", (event) => {
     badge: notification.badge || "/icons/icon-192.svg",
     image: notification.image,
     data: { link: data.link || "/" },
-    actions: [{ action: "open", title: data.kind === "birthday" ? "Enviar mensagem" : "Ver agenda" }],
+    actions: [{ action: "open", title: data.kind === "birthday" ? "Enviar WhatsApp" : "Ver agenda" }],
   }));
 });
 

@@ -116,6 +116,7 @@ export function Dashboard() {
                     </div>
                     <h3 className="mt-1 font-semibold text-sm text-slate-900">{event.title}</h3>
                     <p className="mt-1 text-xs text-slate-600 line-clamp-2">{event.description}</p>
+                    {event.pdfUrl && <span className="mt-2 inline-flex items-center rounded-full bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-700" aria-label="Esta agenda possui PDF anexado">📎 PDF</span>}
                   </Link>
                 ))}
               {!events.length && !birthdays.length && (

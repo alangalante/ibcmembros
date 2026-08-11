@@ -28,16 +28,17 @@ export async function sendPush(input: PushInput) {
   for (const batch of chunks(devices, 500)) {
     const message: MulticastMessage = {
       tokens: batch.map((device) => device.token),
-      notification: { title: input.title, body: input.body, ...(input.image ? { imageUrl: input.image } : {}) },
-      data: { link: input.link, ...input.data },
+      // Mensagem somente com dados: o service worker controla a exibição e o
+      // destino do clique, inclusive links externos como o WhatsApp.
+      data: {
+        title: input.title,
+        body: input.body,
+        link: input.link,
+        ...(input.image ? { image: input.image } : {}),
+        ...input.data,
+      },
       webpush: {
-        fcmOptions: { link: input.link },
-        notification: {
-          icon: "/icons/icon-192.png",
-          badge: "/icons/icon-192.png",
-          ...(input.image ? { image: input.image } : {}),
-          actions: [{ action: "open", title: input.data?.kind === "birthday" ? "Enviar WhatsApp" : "Ver agenda" }],
-        },
+        headers: { Urgency: "high" },
       },
     };
     const result = await adminMessaging.sendEachForMulticast(message);

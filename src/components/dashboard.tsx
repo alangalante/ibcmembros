@@ -100,25 +100,23 @@ export function Dashboard() {
             <h2 className="text-lg font-bold text-slate-900">Agenda do dia</h2>
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {birthdays.map((person) => (
-                <article key={`birthday-${person.id}`} className={`rounded-2xl border p-4 shadow-2xs ${person.groupIds.some((id) => userGroupIds.includes(id)) ? "border-amber-300 bg-amber-50" : "border-slate-100 bg-white"}`}>
+                <button type="button" onClick={() => setSelectedMemberUid(person.id)} key={`birthday-${person.id}`} className={`rounded-2xl border p-4 text-left shadow-2xs ${person.groupIds.some((id) => userGroupIds.includes(id)) ? "border-amber-300 bg-amber-50" : "border-slate-100 bg-white"}`}>
                   <p className="text-xs font-bold uppercase tracking-wide text-pink-700">🎂 Aniversário</p>
                   <h3 className="mt-1 font-semibold text-sm text-slate-900">{person.name}</h3>
                   {person.groupIds.some((id) => userGroupIds.includes(id)) && <p className="mt-1 text-[10px] font-bold text-amber-800">⭐ Pessoa do seu grupo</p>}
-                </article>
+                </button>
               ))}
               {events.map((event) => (
-                  <article key={event.id} className="rounded-2xl bg-white p-4 shadow-2xs border border-slate-100">
+                  <Link key={event.id} href={`/events/${event.id}`} className="block rounded-2xl bg-white p-4 shadow-2xs border border-slate-100 hover:border-emerald-300">
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
                         {event.eventDate.split("-").reverse().join("/")}
                       </p>
-                      <Link href={`/events/${event.id}`} className="text-xs font-semibold text-emerald-800 hover:underline">
-                        Detalhes →
-                      </Link>
+                      <span className="text-xs font-semibold text-emerald-800">Detalhes →</span>
                     </div>
                     <h3 className="mt-1 font-semibold text-sm text-slate-900">{event.title}</h3>
                     <p className="mt-1 text-xs text-slate-600 line-clamp-2">{event.description}</p>
-                  </article>
+                  </Link>
                 ))}
               {!events.length && !birthdays.length && (
                 <p className="col-span-full text-sm text-slate-500 rounded-2xl bg-white p-4 border border-slate-100">

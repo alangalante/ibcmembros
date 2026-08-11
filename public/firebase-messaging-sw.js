@@ -80,11 +80,11 @@ self.addEventListener("push", (event) => {
   const payload = event.data.json();
   const notification = payload.notification || {};
   const data = payload.data || {};
-  event.waitUntil(self.registration.showNotification(notification.title || "IBC Membros", {
-    body: notification.body,
-    icon: notification.icon || "/icons/icon-192.svg",
-    badge: notification.badge || "/icons/icon-192.svg",
-    image: notification.image,
+  event.waitUntil(self.registration.showNotification(data.title || notification.title || "IBC Membros", {
+    body: data.body || notification.body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    image: data.image || notification.image,
     data: { link: data.link || "/" },
     actions: [{ action: "open", title: data.kind === "birthday" ? "Enviar WhatsApp" : "Ver agenda" }],
   }));

@@ -11,6 +11,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
 
   const event = offline.events.find((item) => item.id === eventId);
   const groups = offline.groups.filter((group) => event?.groupIds?.includes(group.id));
+  const eventTime = event?.startsAt ? new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(event.startsAt)) : null;
 
   return (
     <div className="min-h-dvh bg-slate-50 text-slate-900 pb-20">
@@ -32,6 +33,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
             </div>
 
             <h1 className="mt-4 text-2xl font-bold text-slate-900">{event.title}</h1>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase text-slate-500">Data</p><p className="mt-1 text-sm font-semibold">{event.eventDate.split("-").reverse().join("/")}</p></div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase text-slate-500">Horário</p><p className="mt-1 text-sm font-semibold">{eventTime || "Não informado"}</p></div>
+            </div>
 
             <p className="mt-3 text-sm text-slate-600 leading-relaxed whitespace-pre-line">
               {event.description || "Sem descrição informada."}

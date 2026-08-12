@@ -8,6 +8,7 @@ async function run() {
   let authUsers = 0; let token: string | undefined;
   do { const page = await adminAuth.listUsers(1000, token); authUsers += page.users.length; token = page.pageToken; } while (token);
   const alan = await adminDb.collection("users").where("username", "==", "alanc.galante").get();
-  console.info(JSON.stringify({ ...counts, authUsers, alan: alan.docs.map((doc) => ({ uid: doc.id, role: doc.get("role"), mustChangePassword: doc.get("mustChangePassword") })) }, null, 2));
+  const withPhoto = (await adminDb.collection("users").where("photoUrl", "!=", null).count().get()).data().count;
+  console.info(JSON.stringify({ ...counts, authUsers, withPhoto, alan: alan.docs.map((doc) => ({ uid: doc.id, role: doc.get("role"), mustChangePassword: doc.get("mustChangePassword") })) }, null, 2));
 }
 run().catch((error) => { console.error(error); process.exit(1); });

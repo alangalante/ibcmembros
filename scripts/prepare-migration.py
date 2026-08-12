@@ -10,6 +10,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 from PIL import Image
+import cv2
 
 PARTICLES = {"da", "das", "de", "do", "dos", "e"}
 ADMIN_NAMES = {"Alan Carvalho Galante", "Tarcísio Nunes Cardoso", "Ackley de Almeida Fontes", "Ruiter de Campos Muniz"}
@@ -66,6 +67,24 @@ def likely_single(path: Path) -> bool:
     name = ascii_key(path.stem)
     return not re.search(r"\b(e|com)\b|\+|famil|casal|grupo", name)
 
+def image_metrics(path: Path, detector) -> dict | None:
+    image = cv2.imread(str(path))
+    if image is None: return None
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    height, width = gray.shape
+    scale = min(1.0, 1400 / max(width, height))
+    sample = cv2.resize(gray, None, fx=scale, fy=scale) if scale < 1 else gray
+    faces = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
+    result = {"faceCount": len(faces), "width": width, "height": height, "contentHash": hashlib.sha256(path.read_bytes()).hexdigest(), "faceArea": 0.0, "sharpness": 0.0, "centeredness": 0.0}
+    if len(faces) == 1:
+        x, y, w, h = faces[0]
+        crop = sample[y:y+h, x:x+w]
+        result["faceArea"] = float(w * h / (sample.shape[0] * sample.shape[1]))
+        result["sharpness"] = float(cv2.Laplacian(crop, cv2.CV_64F).var())
+        face_x, face_y = (x + w / 2) / sample.shape[1], (y + h / 2) / sample.shape[0]
+        result["centeredness"] = max(0.0, 1 - ((face_x - .5) ** 2 + (face_y - .43) ** 2) ** .5)
+    return result
+
 def run(source: Path, photos: Path, output: Path) -> None:
     sheet = load_workbook(source, data_only=True, read_only=True).active
     rows = []
@@ -96,25 +115,41 @@ def run(source: Path, photos: Path, output: Path) -> None:
             if ascii_key(name) not in by_name: errors.append(f"Líder não encontrado: {name}")
             elif by_name[ascii_key(name)]["role"] != "admin": by_name[ascii_key(name)]["role"] = "leader"
 
+    detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    metrics = {}
+    for path in photos.rglob("*"):
+        if path.is_file() and not path.name.startswith("."):
+            details = image_metrics(path, detector)
+            if details: metrics[str(path)] = details
     candidates: dict[str, list[dict]] = defaultdict(list)
     for path in photos.rglob("*"):
         if not path.is_file() or path.name.startswith(".") or not likely_single(path): continue
         tokens = photo_tokens(path)
         for member in members:
             name_tokens = set(ascii_key(member["name"]).split()) - PARTICLES
+            first_name = ascii_key(member["name"].split()[0])
+            nickname_tokens = set(ascii_key(member["nickname"]).split()) - PARTICLES if member["nickname"] else set()
+            identity_match = first_name in tokens or bool(tokens & nickname_tokens)
+            if not identity_match: continue
             overlap = tokens & name_tokens
             birth = member["birthDate"]
             dated = re.match(r"^(\d{1,2})-(\d{1,2})", path.stem)
             date_match = bool(birth and dated and int(dated.group(1)) == int(birth[8:10]) and int(dated.group(2)) == int(birth[5:7]))
             if (date_match and overlap) or len(overlap) >= 2:
-                try:
-                    with Image.open(path) as image: width, height = image.size
-                except Exception: continue
-                score = (3 if date_match else 0) + len(overlap) * 2 + min(width * height / 1_000_000, 5)
-                candidates[member["name"]].append({"path": str(path), "score": round(score, 2), "width": width, "height": height})
-    for member in members:
+                details = metrics.get(str(path))
+                if not details: continue
+                match_score = (3 if date_match else 0) + len(overlap) * 2
+                quality_score = min(details["sharpness"] / 250, 4) + min(details["faceArea"] * 20, 3) + details["centeredness"]
+                score = match_score + quality_score
+                candidates[member["name"]].append({"path": str(path), "score": round(score, 2), "matchScore": match_score, **details})
+    claimed_photos = set(); claimed_hashes = set()
+    ranked_members = sorted(members, key=lambda member: max((item["score"] for item in candidates[member["name"]] if item["faceCount"] == 1), default=0), reverse=True)
+    for member in ranked_members:
         options = sorted(candidates[member["name"]], key=lambda item: (-item["score"], -(item["width"] * item["height"]), item["path"]))
-        if options: member["photo"] = options[0]["path"]
+        safe = [option for option in options if option["faceCount"] == 1 and option["path"] not in claimed_photos and option["contentHash"] not in claimed_hashes]
+        if safe: member["photo"] = safe[0]["path"]
+        if member["photo"]:
+            claimed_photos.add(member["photo"]); claimed_hashes.add(safe[0]["contentHash"])
 
     groups = []
     for name in sorted({m["group"] for m in members if m["group"]}, key=lambda value: (not value.startswith("Grupo ") or not value[6:].isdigit(), int(value[6:]) if value[6:].isdigit() else value)):
@@ -129,7 +164,13 @@ def run(source: Path, photos: Path, output: Path) -> None:
     with (output / "members-preview.csv").open("w", newline="", encoding="utf-8-sig") as handle:
         fields = ["sourceRow", "name", "username", "initialPassword", "birthDate", "phoneE164", "secondaryPhone", "group", "role", "photo"]
         writer = csv.DictWriter(handle, fields); writer.writeheader(); writer.writerows(({key: m.get(key) or "" for key in fields} for m in members))
-    report = {"members": len(members), "groups": len(groups), "admins": sum(m["role"] == "admin" for m in members), "leaders": sum(m["role"] == "leader" for m in members), "withoutBirthDate": sum(not m["birthDate"] for m in members), "withoutPhone": sum(not m["phoneE164"] for m in members), "initialPasswordRule": "ultimo_sobrenome_sem_acento_em_minusculas+123", "withSelectedPhoto": sum(bool(m["photo"]) for m in members), "photoSelectionNeedsHumanReview": True, "errors": errors}
+    with (output / "photo-review.csv").open("w", newline="", encoding="utf-8-sig") as handle:
+        fields = ["name", "status", "selectedPhoto", "candidateCount", "singleFaceCandidates", "selectedScore", "faceArea", "sharpness"]
+        writer = csv.DictWriter(handle, fields); writer.writeheader()
+        for member in members:
+            options = candidates[member["name"]]; selected = next((item for item in options if item["path"] == member["photo"]), {})
+            writer.writerow({"name": member["name"], "status": "SELECIONADA_REVISAR" if member["photo"] else "SEM_FOTO_SEGURA", "selectedPhoto": member["photo"] or "", "candidateCount": len(options), "singleFaceCandidates": sum(item["faceCount"] == 1 for item in options), "selectedScore": selected.get("score", ""), "faceArea": round(selected.get("faceArea", 0), 4) if selected else "", "sharpness": round(selected.get("sharpness", 0), 1) if selected else ""})
+    report = {"members": len(members), "groups": len(groups), "admins": sum(m["role"] == "admin" for m in members), "leaders": sum(m["role"] == "leader" for m in members), "withoutBirthDate": sum(not m["birthDate"] for m in members), "withoutPhone": sum(not m["phoneE164"] for m in members), "initialPasswordRule": "ultimo_sobrenome_sem_acento_em_minusculas+123", "photoFilesAnalyzed": len(metrics), "filesWithOneDetectedFace": sum(item["faceCount"] == 1 for item in metrics.values()), "filesWithMultipleDetectedFaces": sum(item["faceCount"] > 1 for item in metrics.values()), "filesWithoutDetectedFace": sum(item["faceCount"] == 0 for item in metrics.values()), "withSelectedPhoto": sum(bool(m["photo"]) for m in members), "photoSelectionNeedsHumanReview": True, "errors": errors}
     (output / "validation-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if errors: raise SystemExit(2)

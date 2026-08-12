@@ -15,6 +15,9 @@
     "migration:backup": "tsx scripts/backup-production.ts",
     "migration:execute": "tsx scripts/execute-migration.ts",
     "migration:status": "tsx scripts/migration-status.ts",
+    "migration:photo-sheets": "python3 scripts/build-photo-contact-sheets.py",
+    "migration:prepare-photos": "python3 scripts/prepare-profile-photos.py",
+    "migration:upload-photos": "tsx scripts/upload-profile-photos.ts",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\""
   },
   "dependencies": {

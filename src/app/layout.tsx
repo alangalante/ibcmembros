@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 import { OfflineDataProvider } from "@/components/offline-data-provider";
 import { PwaRegister } from "@/components/pwa-register";
+import { PasswordChangeGate } from "@/components/password-change-gate";
 
 export const metadata: Metadata = {
   title: "IBC Membros",
@@ -24,7 +25,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-dvh antialiased">
         <AuthProvider>
           <PwaRegister />
-          <OfflineDataProvider>{children}</OfflineDataProvider>
+          <OfflineDataProvider><PasswordChangeGate>{children}</PasswordChangeGate></OfflineDataProvider>
         </AuthProvider>
       </body>
     </html>

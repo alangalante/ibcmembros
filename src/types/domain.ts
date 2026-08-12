@@ -7,8 +7,10 @@ export type EventScope = "global" | "groups";
 export interface UserProfile {
   name: string;
   nameSearch: string;
+  username: string;
   birthMonthDay: string; // MM-DD; chave indexável para a automação
   phoneE164: string;
+  mustChangePassword: boolean;
   photoUrl: string | null;
   photoPublicId: string | null;
   role: AccessRole;
@@ -20,7 +22,7 @@ export interface UserProfile {
 }
 
 export interface UserPrivate {
-  birthDate: string; // YYYY-MM-DD; somente administradores
+  birthDate: string | null; // YYYY-MM-DD; somente administradores
   conversionDate: string | null;
   conversionReason: string | null;
   legacyPhotoPath?: string | null;

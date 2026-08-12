@@ -13,5 +13,7 @@ firebase-debug.log
 membros_rows.csv
 docs/Database.md
 service-account.json
+data/
+migration-output/
 
 .vercel

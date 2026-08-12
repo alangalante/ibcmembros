@@ -3,7 +3,7 @@
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { FormEvent, useState } from "react";
 import { auth } from "@/lib/firebase/client";
-import { phoneToInternalEmail } from "@/lib/phone-auth";
+import { normalizeUsername, phoneToInternalEmail, usernameToInternalEmail } from "@/lib/phone-auth";
 
 export function LoginForm() {
   const [error, setError] = useState("");
@@ -15,22 +15,24 @@ export function LoginForm() {
     setError("");
 
     const form = new FormData(event.currentTarget);
-    const phoneInput = String(form.get("phone") || "").trim();
+    const loginInput = String(form.get("login") || "").trim();
     const password = String(form.get("password") || "").trim();
 
-    const digits = phoneInput.replace(/\D/g, "");
-    if (!digits || digits.length < 8) {
-      setError("Informe o número de telefone completo (apenas números).");
+    const digits = loginInput.replace(/\D/g, "");
+    const legacyPhone = /^\D*\d[\d\s()+-]*$/.test(loginInput) && digits.length >= 8;
+    const normalizedUsername = normalizeUsername(loginInput);
+    if (!legacyPhone && !normalizedUsername.includes(".")) {
+      setError("Informe seu usuário no formato nome.sobrenome.");
       setBusy(false);
       return;
     }
 
-    const email = phoneToInternalEmail(digits);
+    const email = legacyPhone ? phoneToInternalEmail(digits) : usernameToInternalEmail(normalizedUsername);
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch {
-      setError("Telefone ou senha incorretos.");
+      setError("Usuário ou senha incorretos.");
       setBusy(false);
     }
   }
@@ -39,17 +41,17 @@ export function LoginForm() {
     <form onSubmit={submit} className="mt-8 space-y-4">
       <div>
         <label className="block text-sm font-semibold text-slate-800">
-          Telefone (somente números)
+          Usuário
         </label>
         <input
-          name="phone"
-          type="tel"
+          name="login"
+          type="text"
           required
-          autoComplete="tel"
-          placeholder="ex: 22999999999"
+          autoComplete="username"
+          placeholder="ex: alanc.galante"
           className="mt-1 w-full rounded-xl border border-emerald-900/15 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-600"
         />
-        <p className="mt-1 text-[11px] text-slate-500">Digite seu DDD + telefone, sem espaço ou traço.</p>
+        <p className="mt-1 text-[11px] text-slate-500">No primeiro acesso, use o usuário fornecido pela igreja.</p>
       </div>
 
       <div>

@@ -4,7 +4,7 @@ import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { adminUserPatchSchema } from "@/lib/validation";
 import { ApiError, authenticate, errorResponse, requireAdmin } from "@/lib/server/auth";
 import { recordAudit, recordChange } from "@/lib/server/sync";
-import { phoneToInternalEmail } from "@/lib/phone-auth";
+import { usernameToInternalEmail } from "@/lib/phone-auth";
 
 export const runtime = "nodejs";
 
@@ -39,13 +39,24 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
 
     const publicPatch: Record<string, unknown> = { ...parsed.data.public };
     if (parsed.data.public.name) publicPatch.nameSearch = parsed.data.public.name.toLocaleLowerCase("pt-BR");
-    if (parsed.data.private.birthDate) publicPatch.birthMonthDay = parsed.data.private.birthDate.slice(5);
+    if (parsed.data.private.birthDate !== undefined) publicPatch.birthMonthDay = parsed.data.private.birthDate?.slice(5) || "";
 
-    if (parsed.data.accessPassword) {
+    if (parsed.data.public.username) {
+      const existing = await adminDb.collection("users").where("username", "==", parsed.data.public.username).get();
+      if (existing.docs.some((doc) => doc.id !== uid)) throw new ApiError(400, "Este nome de usuário já está em uso.");
+    }
+
+    if (parsed.data.accessPassword || parsed.data.public.username) {
       const userDoc = await adminDb.collection("users").doc(uid).get();
       if (!userDoc.exists) throw new ApiError(404, "Usuário não encontrado");
-      const phone = String(parsed.data.public.phoneE164 || userDoc.get("phoneE164") || "");
-      const authData = { email: phoneToInternalEmail(phone), password: parsed.data.accessPassword, displayName: String(parsed.data.public.name || userDoc.get("name")) };
+      const username = String(parsed.data.public.username || userDoc.get("username") || "");
+      if (!username) throw new ApiError(400, "Defina um nome de usuário para atualizar o acesso.");
+      const authData = {
+        email: usernameToInternalEmail(username),
+        ...(parsed.data.accessPassword ? { password: parsed.data.accessPassword } : {}),
+        displayName: String(parsed.data.public.name || userDoc.get("name")),
+      };
+      if (parsed.data.accessPassword) publicPatch.mustChangePassword = true;
       try {
         await adminAuth.updateUser(uid, authData);
       } catch (error: unknown) {
@@ -98,4 +109,3 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     return errorResponse(error);
   }
 }
-

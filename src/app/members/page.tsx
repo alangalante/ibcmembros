@@ -10,6 +10,7 @@ import { PhotoUpload } from "@/components/photo-upload";
 import { MemberDetailModal } from "@/components/member-detail-modal";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { formatPhoneMask, normalizeDDDPhone } from "@/lib/phone-auth";
+import { normalizeUsername } from "@/lib/phone-auth";
 
 type PersonFilter = "all" | "member" | "visitor" | "inactive";
 
@@ -40,6 +41,7 @@ export default function MembersDirectoryPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
+    username: "",
     phoneE164: "",
     birthDate: "",
     role: "common" as "admin" | "leader" | "common",
@@ -55,6 +57,7 @@ export default function MembersDirectoryPage() {
   const [editingUid, setEditingUid] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
+    username: "",
     phoneE164: "",
     role: "common" as "admin" | "leader" | "common",
     type: "member" as "member" | "visitor",
@@ -115,6 +118,7 @@ export default function MembersDirectoryPage() {
       setShowCreateModal(false);
       setCreateForm({
         name: "",
+        username: "",
         phoneE164: "",
         birthDate: "",
         role: "common",
@@ -145,6 +149,7 @@ export default function MembersDirectoryPage() {
 
     setEditForm({
       name: publicProfile.name,
+      username: publicProfile.username || "",
       phoneE164: formatPhoneMask(publicProfile.phoneE164),
       role: publicProfile.role,
       type: publicProfile.type,
@@ -198,6 +203,7 @@ export default function MembersDirectoryPage() {
         body: JSON.stringify({
           public: {
             name: editForm.name,
+            username: editForm.username,
             phoneE164: cleanPhone,
             role: editForm.role,
             type: editForm.type,
@@ -206,7 +212,7 @@ export default function MembersDirectoryPage() {
             photoPublicId: editForm.photoPublicId,
           },
           private: {
-            ...(editForm.birthDate ? { birthDate: editForm.birthDate } : {}),
+            birthDate: editForm.birthDate || null,
             conversionDate: editForm.conversionDate || null,
             conversionReason: editForm.conversionReason || null,
           },
@@ -323,7 +329,7 @@ export default function MembersDirectoryPage() {
                   )}
                   <div>
                     <h3 className="font-semibold text-sm text-slate-900">{item.name}</h3>
-                    <p className="text-xs text-slate-500">{formatPhoneMask(item.phoneE164)}</p>
+                    <p className="text-xs text-slate-500">{formatPhoneMask(item.phoneE164) || "Telefone não informado"}</p>
                     <div className="mt-1 flex gap-1 flex-wrap">
                       <span className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold ${item.type === "member" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>
                         {item.type === "member" ? "Membro" : "Visitante"}
@@ -386,17 +392,26 @@ export default function MembersDirectoryPage() {
                   type="text"
                   required
                   value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    const parts = name.trim().split(/\s+/);
+                    const suggested = parts.length > 1 ? normalizeUsername(`${parts[0]}${parts[1]?.[0] || ""}.${parts.at(-1)}`) : "";
+                    setCreateForm({ ...createForm, name, username: createForm.username ? createForm.username : suggested });
+                  }}
                   className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Usuário de acesso *</label>
+                <input type="text" required value={createForm.username} onChange={(e) => setCreateForm({ ...createForm, username: normalizeUsername(e.target.value) })} placeholder="ex: alanc.galante" className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm" />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700">Telefone (DDD + Número) *</label>
+                  <label className="block text-xs font-bold text-slate-700">Telefone (opcional)</label>
                   <input
                     type="text"
-                    required
                     placeholder="(22) 99999-9999"
                     value={createForm.phoneE164}
                     onChange={(e) => setCreateForm({ ...createForm, phoneE164: formatPhoneMask(e.target.value) })}
@@ -404,10 +419,9 @@ export default function MembersDirectoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700">Nascimento (Privado) *</label>
+                  <label className="block text-xs font-bold text-slate-700">Nascimento (opcional)</label>
                   <input
                     type="date"
-                    required
                     value={createForm.birthDate}
                     onChange={(e) => setCreateForm({ ...createForm, birthDate: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
@@ -453,7 +467,7 @@ export default function MembersDirectoryPage() {
                   className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   placeholder="Mínimo de 6 caracteres"
                 />
-                <p className="mt-1 text-[11px] text-slate-500">O telefone e esta senha serão usados no primeiro acesso.</p>
+                <p className="mt-1 text-[11px] text-slate-500">O usuário deverá trocar esta senha no primeiro acesso.</p>
               </div>
 
               <div className="mt-6 flex justify-end gap-2 pt-2">
@@ -510,12 +524,16 @@ export default function MembersDirectoryPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700">Usuário de acesso</label>
+                <input type="text" required value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: normalizeUsername(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm" />
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Telefone (DDD + Número)</label>
                   <input
                     type="text"
-                    required
                     placeholder="(22) 99999-9999"
                     value={editForm.phoneE164}
                     onChange={(e) => setEditForm({ ...editForm, phoneE164: formatPhoneMask(e.target.value) })}

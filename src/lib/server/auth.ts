@@ -24,14 +24,17 @@ export async function authenticate(request: NextRequest): Promise<AuthenticatedA
 
   // Se o usuário foi autenticado no Firebase Auth mas ainda não possuía documento no Firestore, cria um perfil ativo
   if (!profile.exists) {
-    const rawPhone = decoded.email?.replace("@ibcmembros.internal", "") || "";
-    const name = decoded.name || (rawPhone ? `Membro (${rawPhone})` : "Novo Membro");
+    const login = decoded.email?.replace("@ibcmembros.internal", "") || "";
+    const rawPhone = /^\d+$/.test(login) ? login : "";
+    const name = decoded.name || (login ? `Membro (${login})` : "Novo Membro");
 
     const defaultProfile = {
       name,
       nameSearch: name.toLowerCase(),
-      birthMonthDay: "01-01",
+      birthMonthDay: "",
       phoneE164: rawPhone,
+      username: /^\d+$/.test(login) ? "" : login,
+      mustChangePassword: false,
       photoUrl: decoded.picture || null,
       photoPublicId: null,
       role: "common" as AccessRole,

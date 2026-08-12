@@ -12,10 +12,18 @@ export const phoneE164 = z.preprocess(
   z.string().regex(/^\d{10,11}$/, "Telefone inválido (informe DDD + Número com 10 ou 11 dígitos)")
 );
 
+export const optionalPhoneE164 = z.preprocess(
+  (val) => typeof val === "string" ? val.replace(/\D/g, "").replace(/^55(?=\d{10,11}$)/, "") : val,
+  z.union([z.literal(""), z.string().regex(/^\d{10,11}$/, "Telefone inválido (informe DDD + Número)")])
+);
+
+export const username = z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:\.[a-z0-9]+)+$/, "Usuário inválido").min(4).max(80);
+export const optionalBirthDate = z.union([z.literal(""), z.iso.date()]).transform((value) => value || null);
+
 export const userSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  birthDate: z.iso.date(),
-  phoneE164,
+  birthDate: optionalBirthDate,
+  phoneE164: optionalPhoneE164,
   photoUrl: z.url().nullable(),
   photoPublicId: z.string().trim().max(300).nullable().default(null),
   role: z.enum(["admin", "leader", "common"]),
@@ -30,7 +38,8 @@ export const userSchema = z.object({
 
 export const publicUserPatchSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  phoneE164,
+  username,
+  phoneE164: optionalPhoneE164,
   photoUrl: z.url().nullable(),
   photoPublicId: z.string().trim().max(300).nullable(),
   role: z.enum(["admin", "leader", "common"]),
@@ -39,7 +48,7 @@ export const publicUserPatchSchema = z.object({
 }).partial();
 
 export const privateUserPatchSchema = z.object({
-  birthDate: z.iso.date().optional(),
+  birthDate: z.union([z.literal(""), z.iso.date(), z.null()]).optional(),
   conversionDate: z.iso.date().nullable().optional(),
   conversionReason: z.string().trim().max(500).nullable().optional(),
 });
@@ -51,11 +60,11 @@ export const adminUserPatchSchema = z.object({
 }).refine((data) => Object.keys(data.public).length + Object.keys(data.private).length > 0 || Boolean(data.accessPassword), "Nenhuma alteração informada");
 
 export const adminCreateUserSchema = z.object({
-  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  username,
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
   name: z.string().trim().min(2, "Nome curto demais").max(120),
-  phoneE164,
-  birthDate: z.iso.date("Data de nascimento inválida (AAAA-MM-DD)"),
+  phoneE164: optionalPhoneE164,
+  birthDate: optionalBirthDate,
   role: z.enum(["admin", "leader", "common"]),
   type: z.enum(["member", "visitor"]),
   conversionDate: z.iso.date().nullable().optional(),

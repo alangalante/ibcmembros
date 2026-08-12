@@ -11,6 +11,9 @@
     "firebase:emulators": "firebase emulators:start",
     "firebase:deploy": "firebase deploy --only firestore:rules,firestore:indexes",
     "migrate:members": "tsx scripts/import-members.ts",
+    "migration:prepare": "python3 scripts/prepare-migration.py",
+    "migration:backup": "tsx scripts/backup-production.ts",
+    "migration:execute": "tsx scripts/execute-migration.ts",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\""
   },
   "dependencies": {

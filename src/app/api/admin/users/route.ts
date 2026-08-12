@@ -4,7 +4,7 @@ import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { adminCreateUserSchema } from "@/lib/validation";
 import { ApiError, authenticate, errorResponse, requireAdmin } from "@/lib/server/auth";
 import { recordAudit, recordChange } from "@/lib/server/sync";
-import { phoneToInternalEmail } from "@/lib/phone-auth";
+import { usernameToInternalEmail } from "@/lib/phone-auth";
 
 
 export const runtime = "nodejs";
@@ -20,14 +20,18 @@ export async function POST(request: NextRequest) {
       throw new ApiError(400, parsed.error.issues[0]?.message ?? "Dados inválidos");
     }
 
-    const { email, password, name, phoneE164, birthDate, role, type, conversionDate, conversionReason } = parsed.data;
+    const { username, password, name, phoneE164, birthDate, role, type, conversionDate, conversionReason } = parsed.data;
 
-    const existing = await adminDb.collection("users").where("phoneE164", "==", phoneE164).get();
-    if (!existing.empty) {
-      throw new ApiError(400, "Já existe um cadastro com este telefone.");
+    if (phoneE164) {
+      const existingPhone = await adminDb.collection("users").where("phoneE164", "==", phoneE164).get();
+      if (!existingPhone.empty) throw new ApiError(400, "Já existe um cadastro com este telefone.");
+    }
+    const existingUsername = await adminDb.collection("users").where("username", "==", username).get();
+    if (!existingUsername.empty) {
+      throw new ApiError(400, "Este nome de usuário já está em uso.");
     }
 
-    const authEmail = email || phoneToInternalEmail(phoneE164);
+    const authEmail = usernameToInternalEmail(username);
     const userRecord = await adminAuth.createUser({
       email: authEmail,
       password,
@@ -38,14 +42,16 @@ export async function POST(request: NextRequest) {
 
 
 
-    const birthMonthDay = birthDate.slice(5); // YYYY-MM-DD -> MM-DD
+    const birthMonthDay = birthDate?.slice(5) || "";
     const nameSearch = name.toLocaleLowerCase("pt-BR");
 
     const publicProfile = {
       name,
       nameSearch,
+      username,
       birthMonthDay,
       phoneE164,
+      mustChangePassword: true,
       photoUrl: null,
       photoPublicId: null,
       role,

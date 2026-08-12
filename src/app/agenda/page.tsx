@@ -27,15 +27,16 @@ export default function AgendaPage() {
   const weekYear = Number(start.slice(0, 4));
 
   const weekBirthdays = offline.users.flatMap((person) => {
+    if (!person.active || !person.birthMonthDay) return [];
     const date = [birthdayDate(person.birthMonthDay, weekYear), birthdayDate(person.birthMonthDay, weekYear + 1)].find((value) => value >= start && value <= end);
-    return person.active && date ? [{ person, date }] : [];
+    return date ? [{ person, date }] : [];
   });
   const days = Array.from({ length: 8 }, (_, index) => {
     const date = new Date(`${start}T12:00:00`); date.setDate(date.getDate() + index); return date.toISOString().slice(0, 10);
   });
 
   const monthItems = useMemo(() => {
-    const birthdays = offline.users.filter((person) => person.active).map((person) => ({ id: `birthday-${person.id}`, userId: person.id, date: `${month}-${person.birthMonthDay.slice(3)}`, title: person.name, kind: "birthday" as const }));
+    const birthdays = offline.users.filter((person) => person.active && person.birthMonthDay).map((person) => ({ id: `birthday-${person.id}`, userId: person.id, date: `${month}-${person.birthMonthDay.slice(3)}`, title: person.name, kind: "birthday" as const }));
     const agendas = visibleEvents.filter((event) => event.eventDate.startsWith(month)).map((event) => ({ id: event.id, date: event.eventDate, title: event.title, kind: "agenda" as const, pdfUrl: event.pdfUrl }));
     return [...birthdays, ...agendas].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "pt-BR"));
   }, [month, offline.users, visibleEvents]);
@@ -44,7 +45,7 @@ export default function AgendaPage() {
   const periodItems = useMemo(() => {
     if (!validPeriod) return [];
     const years = Array.from(new Set([Number(periodStart.slice(0, 4)), Number(periodEnd.slice(0, 4))]));
-    const birthdays = offline.users.flatMap((person) => years.map((year) => ({ id: `birthday-${person.id}-${year}`, userId: person.id, date: birthdayDate(person.birthMonthDay, year), title: person.name, kind: "birthday" as const }))).filter((item) => item.date >= periodStart && item.date <= periodEnd);
+    const birthdays = offline.users.filter((person) => person.active && person.birthMonthDay).flatMap((person) => years.map((year) => ({ id: `birthday-${person.id}-${year}`, userId: person.id, date: birthdayDate(person.birthMonthDay, year), title: person.name, kind: "birthday" as const }))).filter((item) => item.date >= periodStart && item.date <= periodEnd);
     const agendas = visibleEvents.filter((event) => event.eventDate >= periodStart && event.eventDate <= periodEnd).map((event) => ({ id: event.id, date: event.eventDate, title: event.title, kind: "agenda" as const, pdfUrl: event.pdfUrl }));
     return [...birthdays, ...agendas].sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "pt-BR"));
   }, [offline.users, periodEnd, periodStart, validPeriod, visibleEvents]);

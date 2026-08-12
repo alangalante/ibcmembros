@@ -31,6 +31,20 @@ export function phoneToInternalEmail(phone: string): string {
   return `${digits}@ibcmembros.internal`;
 }
 
+export function normalizeUsername(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9.]/g, "")
+    .replace(/\.{2,}/g, ".")
+    .replace(/^\.|\.$/g, "");
+}
+
+export function usernameToInternalEmail(username: string): string {
+  return `${normalizeUsername(username)}@ibcmembros.internal`;
+}
+
 /**
  * Gera a URL oficial do WhatsApp garantindo que o DDI +55 (Brasil) seja incluído no link.
  */

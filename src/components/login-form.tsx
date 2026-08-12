@@ -48,10 +48,10 @@ export function LoginForm() {
           type="text"
           required
           autoComplete="username"
-          placeholder="ex: alanc.galante"
+          placeholder="primeironome.primeiraletra.ultimosobrenome"
           className="mt-1 w-full rounded-xl border border-emerald-900/15 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-600"
         />
-        <p className="mt-1 text-[11px] text-slate-500">No primeiro acesso, use o usuário fornecido pela igreja.</p>
+        <p className="mt-1 text-[11px] text-slate-500">Formato: primeiro nome + primeira letra do segundo nome + ponto + último sobrenome.</p>
       </div>
 
       <div>
@@ -66,6 +66,7 @@ export function LoginForm() {
           placeholder="Sua senha"
           className="mt-1 w-full rounded-xl border border-emerald-900/15 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-600"
         />
+        <p className="mt-1 text-[11px] text-slate-500">No primeiro acesso, use o último sobrenome + 123. Exemplo: sobrenome123.</p>
       </div>
 
       {error && (

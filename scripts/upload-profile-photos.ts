@@ -15,7 +15,7 @@ async function run() {
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   if (!cloudName || !apiKey || !apiSecret) throw new Error("Credenciais do Cloudinary ausentes.");
   const manifest = JSON.parse(await readFile("migration-output/profile-photo-manifest.json", "utf8")) as Photo[];
-  if (manifest.length !== 181) throw new Error(`Manifesto inesperado: ${manifest.length} fotos.`);
+  if (manifest.length !== 295) throw new Error(`Manifesto inesperado: ${manifest.length} fotos; esperado: 295.`);
   const { adminDb } = await import("../src/lib/firebase/admin");
   let completed = 0;
 

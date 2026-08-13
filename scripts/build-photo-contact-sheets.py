@@ -7,6 +7,12 @@ output = Path("migration-output/photo-contact-sheets")
 output.mkdir(parents=True, exist_ok=True)
 preview = json.loads(Path("migration-output/migration-preview.json").read_text())
 members = [member for member in preview["members"] if member.get("photo")]
+previous_manifest = Path("migration-output/profile-photo-manifest.json")
+if "--new-only" in __import__("sys").argv and previous_manifest.exists():
+    previous = {item["username"] for item in json.loads(previous_manifest.read_text())}
+    members = [member for member in members if member["username"] not in previous]
+    output = Path("migration-output/photo-contact-sheets-new")
+    output.mkdir(parents=True, exist_ok=True)
 font = ImageFont.load_default(size=14)
 cols, rows, cell_w, cell_h = 4, 5, 240, 290
 for page in range(math.ceil(len(members) / (cols * rows))):

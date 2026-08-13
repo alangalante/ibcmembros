@@ -65,7 +65,7 @@ def photo_tokens(path: Path) -> set[str]:
 
 def likely_single(path: Path) -> bool:
     name = ascii_key(path.stem)
-    return not re.search(r"\b(e|com)\b|\+|famil|casal|grupo", name)
+    return "," not in path.stem and not re.search(r"\b(e|com)\b|\+|famil|casal|grupo", name)
 
 def image_metrics(path: Path, detector) -> dict | None:
     image = cv2.imread(str(path))
@@ -74,7 +74,13 @@ def image_metrics(path: Path, detector) -> dict | None:
     height, width = gray.shape
     scale = min(1.0, 1400 / max(width, height))
     sample = cv2.resize(gray, None, fx=scale, fy=scale) if scale < 1 else gray
-    faces = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
+    detected = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
+    faces = sorted(detected, key=lambda face: face[2] * face[3], reverse=True)
+    # O Haar encontra falsos positivos pequenos em roupas e bordas transparentes.
+    # Só contam como outras pessoas rostos com pelo menos 25% da área do principal.
+    if faces:
+        largest_area = faces[0][2] * faces[0][3]
+        faces = [face for face in faces if face[2] * face[3] >= largest_area * .25]
     result = {"faceCount": len(faces), "width": width, "height": height, "contentHash": hashlib.sha256(path.read_bytes()).hexdigest(), "faceArea": 0.0, "sharpness": 0.0, "centeredness": 0.0}
     if len(faces) == 1:
         x, y, w, h = faces[0]
@@ -143,10 +149,10 @@ def run(source: Path, photos: Path, output: Path) -> None:
                 score = match_score + quality_score
                 candidates[member["name"]].append({"path": str(path), "score": round(score, 2), "matchScore": match_score, **details})
     claimed_photos = set(); claimed_hashes = set()
-    ranked_members = sorted(members, key=lambda member: max((item["score"] for item in candidates[member["name"]] if item["faceCount"] == 1), default=0), reverse=True)
+    ranked_members = sorted(members, key=lambda member: max((item["score"] for item in candidates[member["name"]] if item["faceCount"] == 1 or item["matchScore"] >= 5), default=0), reverse=True)
     for member in ranked_members:
         options = sorted(candidates[member["name"]], key=lambda item: (-item["score"], -(item["width"] * item["height"]), item["path"]))
-        safe = [option for option in options if option["faceCount"] == 1 and option["path"] not in claimed_photos and option["contentHash"] not in claimed_hashes]
+        safe = [option for option in options if (option["faceCount"] == 1 or option["matchScore"] >= 5) and option["path"] not in claimed_photos and option["contentHash"] not in claimed_hashes]
         if safe: member["photo"] = safe[0]["path"]
         if member["photo"]:
             claimed_photos.add(member["photo"]); claimed_hashes.add(safe[0]["contentHash"])
@@ -170,6 +176,13 @@ def run(source: Path, photos: Path, output: Path) -> None:
         for member in members:
             options = candidates[member["name"]]; selected = next((item for item in options if item["path"] == member["photo"]), {})
             writer.writerow({"name": member["name"], "status": "SELECIONADA_REVISAR" if member["photo"] else "SEM_FOTO_SEGURA", "selectedPhoto": member["photo"] or "", "candidateCount": len(options), "singleFaceCandidates": sum(item["faceCount"] == 1 for item in options), "selectedScore": selected.get("score", ""), "faceArea": round(selected.get("faceArea", 0), 4) if selected else "", "sharpness": round(selected.get("sharpness", 0), 1) if selected else ""})
+    without_photo = sorted((member for member in members if not member["photo"]), key=lambda member: ((member["birthDate"] or "9999-99-99")[5:], member["name"]))
+    with (output / "membros-sem-foto.csv").open("w", newline="", encoding="utf-8-sig") as handle:
+        fields = ["Nome", "Data de nascimento", "Dia", "Mês", "Usuário"]
+        writer = csv.DictWriter(handle, fields); writer.writeheader()
+        for member in without_photo:
+            birth = member["birthDate"] or ""
+            writer.writerow({"Nome": member["name"], "Data de nascimento": birth, "Dia": birth[8:10] if birth else "", "Mês": birth[5:7] if birth else "", "Usuário": member["username"]})
     report = {"members": len(members), "groups": len(groups), "admins": sum(m["role"] == "admin" for m in members), "leaders": sum(m["role"] == "leader" for m in members), "withoutBirthDate": sum(not m["birthDate"] for m in members), "withoutPhone": sum(not m["phoneE164"] for m in members), "initialPasswordRule": "ultimo_sobrenome_sem_acento_em_minusculas+123", "photoFilesAnalyzed": len(metrics), "filesWithOneDetectedFace": sum(item["faceCount"] == 1 for item in metrics.values()), "filesWithMultipleDetectedFaces": sum(item["faceCount"] > 1 for item in metrics.values()), "filesWithoutDetectedFace": sum(item["faceCount"] == 0 for item in metrics.values()), "withSelectedPhoto": sum(bool(m["photo"]) for m in members), "photoSelectionNeedsHumanReview": True, "errors": errors}
     (output / "validation-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))

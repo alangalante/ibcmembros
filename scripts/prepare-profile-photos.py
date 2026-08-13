@@ -27,8 +27,23 @@ for member in source["members"]:
     rgb = cv2.cvtColor(cv2.imread(str(path)), cv2.COLOR_BGR2GRAY)
     scale = min(1.0, 1400 / max(rgb.shape[1], rgb.shape[0]))
     sample = cv2.resize(rgb, None, fx=scale, fy=scale) if scale < 1 else rgb
-    faces = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
-    if len(faces) != 1: continue
+    detected = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
+    faces = sorted(detected, key=lambda face: face[2] * face[3], reverse=True)
+    if faces:
+        largest_area = faces[0][2] * faces[0][3]
+        faces = [face for face in faces if face[2] * face[3] >= largest_area * .25]
+    if not faces:
+        crop = ImageOps.contain(image, (400, 400), method=Image.Resampling.LANCZOS)
+        framed = Image.new("RGB", (400, 400), "#f8fafc")
+        framed.paste(crop, ((400 - crop.width) // 2, (400 - crop.height) // 2))
+        crop = framed
+        destination = output / f"{slug(member['username'])}.webp"
+        crop.save(destination, "WEBP", quality=84, method=6)
+        manifest.append({"name": member["name"], "username": member["username"], "source": str(path), "file": str(destination)})
+        continue
+    # A associação já foi validada por data e nome. Rostos pequenos adicionais
+    # podem ser falsos positivos em roupas/transparências; recorta pelo principal.
+    faces = faces[:1]
     x, y, w, h = [int(value / scale) for value in faces[0]]
     x += padding; y += padding
     side = min(image.width, image.height, max(w, h) * 5.4)

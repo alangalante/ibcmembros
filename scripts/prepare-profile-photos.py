@@ -18,17 +18,23 @@ for member in source["members"]:
     if not member.get("photo"): continue
     path = Path(member["photo"])
     with Image.open(path) as original:
-        image = ImageOps.exif_transpose(original).convert("RGB")
+        oriented = ImageOps.exif_transpose(original).convert("RGBA")
+    # Preserva os recortes transparentes sobre um fundo neutro e acrescenta
+    # margem para que cabelos e topo da cabeça nunca encostem no avatar.
+    padding = round(max(oriented.width, oriented.height) * .12)
+    image = Image.new("RGB", (oriented.width + padding * 2, oriented.height + padding * 2), "#f8fafc")
+    image.paste(oriented.convert("RGB"), (padding, padding), oriented.getchannel("A"))
     rgb = cv2.cvtColor(cv2.imread(str(path)), cv2.COLOR_BGR2GRAY)
     scale = min(1.0, 1400 / max(rgb.shape[1], rgb.shape[0]))
     sample = cv2.resize(rgb, None, fx=scale, fy=scale) if scale < 1 else rgb
     faces = detector.detectMultiScale(sample, scaleFactor=1.08, minNeighbors=5, minSize=(35, 35))
     if len(faces) != 1: continue
     x, y, w, h = [int(value / scale) for value in faces[0]]
-    side = min(image.width, image.height, max(w, h) * 4)
-    center_x, center_y = x + w / 2, y + h * 1.25
+    x += padding; y += padding
+    side = min(image.width, image.height, max(w, h) * 5.4)
+    center_x = x + w / 2
     left = max(0, min(image.width - side, center_x - side / 2))
-    top = max(0, min(image.height - side, center_y - side * .38))
+    top = max(0, min(image.height - side, y - h * 1.15))
     crop = image.crop((round(left), round(top), round(left + side), round(top + side))).resize((400, 400), Image.Resampling.LANCZOS)
     destination = output / f"{slug(member['username'])}.webp"
     crop.save(destination, "WEBP", quality=84, method=6)

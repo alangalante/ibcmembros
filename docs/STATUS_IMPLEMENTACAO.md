@@ -7,9 +7,9 @@ Repositório remoto: `https://github.com/alangalante/ibcmembros.git`
 
 ## 1. Objetivo
 
-Aplicativo mobile-first para gestão de membros e visitantes da igreja, com:
+Aplicativo mobile-first para gestão de membros e frequentadores da igreja, com:
 
-- membros, visitantes e conversões;
+- membros, frequentadores e conversões;
 - grupos de comunhão, líderes e participantes;
 - eventos globais e restritos;
 - aniversariantes;
@@ -167,7 +167,7 @@ O ano de nascimento e a idade nunca ficam nesse documento.
 }
 ```
 
-Somente administradores podem ler. Líderes, membros e visitantes não recebem nem armazenam localmente o ano ou a idade.
+Somente administradores podem ler. Líderes, membros e frequentadores não recebem nem armazenam localmente o ano ou a idade.
 
 ### 4.3 Grupos — `groups/{groupId}`
 
@@ -233,7 +233,7 @@ A privacidade do nascimento foi aplicada no banco e nas Firestore Rules, não ap
 - Admin lê `userPrivate`.
 - Líder não lê `userPrivate`.
 - Membro não lê `userPrivate`.
-- Visitante não lê `userPrivate`.
+- Frequentador não lê `userPrivate`.
 - Perfis públicos possuem somente `birthMonthDay`.
 - A idade não deve ser calculada ou enviada em APIs, notificações ou caches comuns.
 - Escrita direta em `userPrivate` é negada até para admin; alterações passam pela API segura.
@@ -344,7 +344,7 @@ Pendente:
 
 Implementado:
 
-- `POST /api/admin/users`: Criação de novo membro ou visitante (com conta Auth opcional) e gravação atômica dos perfis público e privado.
+- `POST /api/admin/users`: Criação de novo membro ou frequentador (com conta Auth opcional) e gravação atômica dos perfis público e privado.
 - `GET /api/admin/users/[uid]`: Leitura de perfil público e dados privados (`birthDate`, `conversionDate`, `conversionReason`) restrita a administradores.
 - `PATCH /api/admin/users/[uid]`: Alteração transacional de campos públicos e privados com derivação de `birthMonthDay`.
 - `POST /api/admin/groups` & `PATCH /api/admin/groups/[groupId]`: Criação e edição transacional de grupos de comunhão.
@@ -632,5 +632,4 @@ O projeto **IBC Membros** encontra-se em estágio **de produção / pronto para 
 
 1. Monitoramento continuo de tráfego do plano Spark do Firebase e Cloudinary Free.
 2. Expansão contínua de relatórios de auditoria e novos filtros nos painéis conforme necessidade da igreja.
-
 

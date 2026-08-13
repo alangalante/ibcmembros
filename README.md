@@ -1,6 +1,6 @@
 # IBC Membros
 
-Base mobile-first para gestão de membros, visitantes, grupos e eventos, construída com Next.js, Tailwind CSS, Firebase, Cloudinary e FCM.
+Base mobile-first para gestão de membros, frequentadores, grupos e eventos, construída com Next.js, Tailwind CSS, Firebase, Cloudinary e FCM.
 
 ## Decisão de custo (leia antes de provisionar)
 
@@ -59,7 +59,7 @@ As fotos usam Cache Storage separado por UID e estratégia Cache First. URLs ver
 
 ### `userPrivate/{authUid}`
 
-`{ birthDate, conversionDate, conversionReason, updatedAt }`. Somente administradores podem ler estes documentos; líderes, membros e visitantes não recebem nem armazenam localmente o ano ou a idade.
+`{ birthDate, conversionDate, conversionReason, updatedAt }`. Somente administradores podem ler estes documentos; líderes, membros e frequentadores não recebem nem armazenam localmente o ano ou a idade.
 
 O ID deve ser o UID do Firebase Auth para pessoas com acesso. Cadastros importados sem login usam temporariamente `legacy_{id}`; ao criar o Auth, mova/mescle o perfil para o UID real.
 
@@ -139,7 +139,7 @@ Alternativa sem Vercel Cron: um workflow diário do GitHub Actions chama `curl -
 
 1. Provisionar Firebase/Vercel, variáveis e Rules.
 2. Criar o primeiro admin e validar login/PWA.
-3. Implementar telas administrativas de usuários, conversão de visitante e upload comprimido.
+3. Implementar telas administrativas de usuários, conversão de frequentador e upload comprimido.
 4. Implementar serviço transacional de vínculos (grupo, membership e `users.groupIds`).
 5. Implementar CRUD de eventos conforme o papel.
 6. Ativar push em aparelho real e testar WhatsApp.

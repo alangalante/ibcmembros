@@ -286,7 +286,7 @@ export default function MembersDirectoryPage() {
             {[
               { id: "all", label: "Todos" },
               { id: "member", label: "Membros" },
-              { id: "visitor", label: "Visitantes" },
+              { id: "visitor", label: "Frequentadores" },
               ...(isAdmin ? [{ id: "inactive", label: "Inativos" }] : []),
             ].map((chip) => (
               <button
@@ -332,7 +332,7 @@ export default function MembersDirectoryPage() {
                     <p className="text-xs text-slate-500">{formatPhoneMask(item.phoneE164) || "Telefone não informado"}</p>
                     <div className="mt-1 flex gap-1 flex-wrap">
                       <span className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold ${item.type === "member" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>
-                        {item.type === "member" ? "Membro" : "Visitante"}
+                        {item.type === "member" ? "Membro" : "Frequentador"}
                       </span>
                       {item.role !== "common" && (
                         <span className="inline-block rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
@@ -438,7 +438,7 @@ export default function MembersDirectoryPage() {
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   >
                     <option value="member">Membro</option>
-                    <option value="visitor">Visitante</option>
+                    <option value="visitor">Frequentador</option>
                   </select>
                 </div>
                 <div>
@@ -560,7 +560,7 @@ export default function MembersDirectoryPage() {
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-sm"
                   >
                     <option value="member">Membro</option>
-                    <option value="visitor">Visitante</option>
+                    <option value="visitor">Frequentador</option>
                   </select>
                 </div>
                 <div>

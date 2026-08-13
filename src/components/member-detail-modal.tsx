@@ -53,7 +53,7 @@ export function MemberDetailModal({ userId, onClose, onOpenEdit, onDelete }: Mem
           <h2 className="mt-3 text-xl font-bold text-slate-900">{viewingUser.name}</h2>
           <div className="mt-1 flex justify-center gap-1.5">
             <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${viewingUser.type === "member" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"}`}>
-              {viewingUser.type === "member" ? "Membro" : "Visitante"}
+              {viewingUser.type === "member" ? "Membro" : "Frequentador"}
             </span>
             {viewingUser.role !== "common" && (
               <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">

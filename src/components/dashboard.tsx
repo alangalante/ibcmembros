@@ -181,7 +181,7 @@ export function Dashboard() {
                             <div>
                               <p className="text-xs font-bold text-slate-900">{member.name}</p>
                               <span className={`text-[10px] font-bold ${isLeader ? "text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md" : "text-slate-500"}`}>
-                                {isLeader ? "⭐ Líder do Grupo" : member.type === "member" ? "Membro" : "Visitante"}
+                                {isLeader ? "⭐ Líder do Grupo" : member.type === "member" ? "Membro" : "Frequentador"}
                               </span>
                             </div>
                           </div>

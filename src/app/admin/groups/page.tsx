@@ -408,7 +408,7 @@ export default function AdminGroupsPage() {
                     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
                     .map((u) => (
                       <option key={u.id} value={u.id}>
-                        {u.name} ({u.type === "member" ? "Membro" : "Visitante"})
+                        {u.name} ({u.type === "member" ? "Membro" : "Frequentador"})
                       </option>
                     ))}
                 </select>

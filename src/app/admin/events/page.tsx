@@ -7,6 +7,7 @@ import { useOfflineData } from "@/components/offline-data-provider";
 import { ConfirmModal } from "@/components/confirm-modal";
 import { uploadAgendaPdf } from "@/lib/pdf";
 import { todayIso } from "@/lib/agenda";
+import { compareGroupNames } from "@/lib/groups";
 
 export default function AdminEventsPage() {
   const { user } = useAuth();
@@ -63,7 +64,8 @@ export default function AdminEventsPage() {
     );
   }
 
-  const ledGroups = offline.groups.filter((group) => group.leaderIds.includes(user?.uid || ""));
+  const orderedGroups = offline.groups.slice().sort((a, b) => compareGroupNames(a.name, b.name));
+  const ledGroups = orderedGroups.filter((group) => group.leaderIds.includes(user?.uid || ""));
   const ledGroupIds = ledGroups.map((group) => group.id);
   const events = offline.events
     .filter((ev) => isAdmin || (ev.scope === "groups" && ev.groupIds.length > 0 && ev.groupIds.every((gId) => ledGroupIds.includes(gId))))
@@ -397,7 +399,7 @@ export default function AdminEventsPage() {
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Selecione os Grupos *</label>
                   <div className="mt-1 space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2">
-                    {(isAdmin ? offline.groups : ledGroups).map((g) => (
+                    {(isAdmin ? orderedGroups : ledGroups).map((g) => (
                       <label key={g.id} className="flex items-center gap-2 text-xs text-slate-800">
                         <input
                           type="checkbox"
@@ -510,7 +512,7 @@ export default function AdminEventsPage() {
                 <div>
                   <label className="block text-xs font-bold text-slate-700">Selecione os Grupos *</label>
                   <div className="mt-1 space-y-1.5 max-h-32 overflow-y-auto border border-slate-200 rounded-xl p-2">
-                    {(isAdmin ? offline.groups : ledGroups).map((g) => (
+                    {(isAdmin ? orderedGroups : ledGroups).map((g) => (
                       <label key={g.id} className="flex items-center gap-2 text-xs text-slate-800">
                         <input
                           type="checkbox"

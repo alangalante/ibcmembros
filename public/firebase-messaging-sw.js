@@ -1,4 +1,4 @@
-const APP_SHELL_CACHE = "ibc-app-shell-v2";
+const APP_SHELL_CACHE = "ibc-app-shell-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -105,9 +105,16 @@ self.addEventListener("notificationclick", (event) => {
   rawLink = rawLink || "/";
 
   if (isWhatsAppAction) {
+    const relayUrl = new URL(rawLink, self.location.origin).href;
     event.waitUntil(
-      clients.openWindow(rawLink).catch(() => {
-        if (notificationData.whatsappFallback) return clients.openWindow(notificationData.whatsappFallback);
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.startsWith(self.location.origin) && "focus" in client) {
+            client.navigate(relayUrl);
+            return client.focus();
+          }
+        }
+        if (clients.openWindow) return clients.openWindow(relayUrl);
       })
     );
     return;

@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const appLink = `${request.nextUrl.origin}/members?member=${birthday.id}`;
     const whatsappFallback = phone ? `${formatWhatsAppLink(phone)}?text=${greeting}` : "";
     const whatsappLink = phone
-      ? `whatsapp://send?phone=${phone.replace(/\D/g, "")}&text=${greeting}`
+      ? `${request.nextUrl.origin}/whatsapp?phone=${phone.replace(/\D/g, "")}&text=${greeting}`
       : "";
     return sendPush({
       userIds: everyone,

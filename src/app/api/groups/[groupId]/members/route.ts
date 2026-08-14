@@ -52,6 +52,59 @@ export async function POST(request: NextRequest, context: { params: Promise<{ gr
   }
 }
 
+export async function PATCH(request: NextRequest, context: { params: Promise<{ groupId: string }> }) {
+  try {
+    const actor = await authenticate(request);
+    if (actor.role !== "admin") throw new ApiError(403, "Somente administradores definem líderes");
+    const { groupId } = await context.params;
+    const parsed = bodySchema.safeParse(await request.json());
+    if (!parsed.success) throw new ApiError(400, "Dados da liderança inválidos");
+
+    const otherLeaderships = parsed.data.isLeader
+      ? null
+      : await adminDb.collection("groups").where("leaderIds", "array-contains", parsed.data.userId).get();
+
+    await adminDb.runTransaction(async (transaction) => {
+      const groupRef = adminDb.collection("groups").doc(groupId);
+      const userRef = adminDb.collection("users").doc(parsed.data.userId);
+      const membershipRef = adminDb.collection("groupMemberships").doc(`${groupId}_${parsed.data.userId}`);
+      const [group, user, membership] = await Promise.all([
+        transaction.get(groupRef), transaction.get(userRef), transaction.get(membershipRef),
+      ]);
+      if (!group.exists || !user.exists) throw new ApiError(404, "Grupo ou usuário não encontrado");
+
+      const participants = (group.get("participantIds") ?? []) as string[];
+      if (!participants.includes(parsed.data.userId) || !membership.exists) {
+        throw new ApiError(400, "A pessoa precisa estar vinculada ao grupo");
+      }
+
+      const leaders = (group.get("leaderIds") ?? []) as string[];
+      const leaderIds = parsed.data.isLeader
+        ? [...new Set([...leaders, parsed.data.userId])]
+        : leaders.filter((id) => id !== parsed.data.userId);
+      const leadsAnotherGroup = otherLeaderships?.docs.some((doc) => doc.id !== groupId) ?? false;
+      const roleUpdate = user.get("role") === "admin"
+        ? {}
+        : parsed.data.isLeader
+          ? { role: "leader" }
+          : !leadsAnotherGroup ? { role: "common" } : {};
+
+      transaction.update(groupRef, { leaderIds, updatedAt: FieldValue.serverTimestamp() });
+      transaction.update(userRef, { ...roleUpdate, updatedAt: FieldValue.serverTimestamp() });
+      transaction.update(membershipRef, { isLeader: parsed.data.isLeader, updatedAt: FieldValue.serverTimestamp() });
+
+      recordChange(transaction, { entity: "group", entityId: groupId, operation: "update", scope: "global", actorId: actor.uid });
+      recordChange(transaction, { entity: "user", entityId: parsed.data.userId, operation: "update", scope: "global", actorId: actor.uid });
+      recordChange(transaction, { entity: "membership", entityId: membershipRef.id, operation: "update", scope: "group", groupId, actorId: actor.uid, participantIds: participants });
+      recordAudit(transaction, actor.uid, parsed.data.isLeader ? "group.leader.promote" : "group.leader.demote", membershipRef.id);
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function DELETE(request: NextRequest, context: { params: Promise<{ groupId: string }> }) {
   try {
     const actor = await authenticate(request);

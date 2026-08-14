@@ -6,6 +6,15 @@ import { useAuth } from "@/components/auth-provider";
 import { useOfflineData } from "@/components/offline-data-provider";
 import { ConfirmModal } from "@/components/confirm-modal";
 
+function compareGroupNames(a: string, b: string) {
+  const numberA = a.match(/^grupo\s+(\d+)$/i)?.[1];
+  const numberB = b.match(/^grupo\s+(\d+)$/i)?.[1];
+  if (numberA && numberB) return Number(numberA) - Number(numberB);
+  if (numberA) return -1;
+  if (numberB) return 1;
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
 export default function AdminGroupsPage() {
   const { user } = useAuth();
   const offline = useOfflineData();
@@ -36,6 +45,7 @@ export default function AdminGroupsPage() {
 
   const [removeMemberUid, setRemoveMemberUid] = useState<string | null>(null);
   const [removeMemberLoading, setRemoveMemberLoading] = useState(false);
+  const [leaderUpdateUid, setLeaderUpdateUid] = useState<string | null>(null);
 
 
   if (!canManageGroups) {
@@ -50,7 +60,10 @@ export default function AdminGroupsPage() {
     );
   }
 
-  const activeGroups = offline.groups.filter((group) => isAdmin || group.leaderIds.includes(user?.uid || ""));
+  const activeGroups = offline.groups
+    .filter((group) => isAdmin || group.leaderIds.includes(user?.uid || ""))
+    .slice()
+    .sort((a, b) => compareGroupNames(a.name, b.name));
   const editingGroup = activeGroups.find((g) => g.id === editingGroupId);
 
   async function handleCreateGroup(e: React.FormEvent) {
@@ -180,6 +193,30 @@ export default function AdminGroupsPage() {
       alert(err instanceof Error ? err.message : "Falha ao remover participante");
     } finally {
       setRemoveMemberLoading(false);
+    }
+  }
+
+  async function handleToggleLeader(memberId: string, isLeader: boolean) {
+    if (!editingGroupId || !isAdmin) return;
+    setMemberAddError("");
+    setLeaderUpdateUid(memberId);
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/groups/${editingGroupId}/members`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId: memberId, isLeader }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar liderança");
+      await offline.refresh();
+    } catch (err) {
+      setMemberAddError(err instanceof Error ? err.message : "Falha ao alterar liderança");
+    } finally {
+      setLeaderUpdateUid(null);
     }
   }
 
@@ -373,14 +410,28 @@ export default function AdminGroupsPage() {
                               </span>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setRemoveMemberUid(member.id)}
-                            disabled={!isAdmin && memberIsLeader}
-                            className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:border-slate-200 disabled:text-slate-400"
-                          >
-                            {!isAdmin && memberIsLeader ? "Líder" : "Desvincular"}
-                          </button>
+                          <div className="flex flex-col items-end gap-1">
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleLeader(member.id, !memberIsLeader)}
+                                disabled={leaderUpdateUid === member.id}
+                                className="rounded-lg border border-amber-200 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-50 disabled:text-slate-400"
+                              >
+                                {leaderUpdateUid === member.id
+                                  ? "Salvando…"
+                                  : memberIsLeader ? "Remover liderança" : "Tornar líder"}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setRemoveMemberUid(member.id)}
+                              disabled={!isAdmin && memberIsLeader}
+                              className="rounded-lg border border-rose-200 bg-white px-2.5 py-1 text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:border-slate-200 disabled:text-slate-400"
+                            >
+                              {!isAdmin && memberIsLeader ? "Líder" : "Desvincular"}
+                            </button>
+                          </div>
                         </div>
                       );
                     })

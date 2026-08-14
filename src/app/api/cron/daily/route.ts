@@ -56,14 +56,24 @@ export async function GET(request: NextRequest) {
     const name = String(birthday.get("name"));
     const phone = String(birthday.get("phoneE164") || "");
     const greeting = encodeURIComponent(`Feliz aniversário, ${name}!`);
-    const link = phone ? `${formatWhatsAppLink(phone)}?text=${greeting}` : `${request.nextUrl.origin}/agenda`;
+    const appLink = `${request.nextUrl.origin}/members?member=${birthday.id}`;
+    const whatsappFallback = phone ? `${formatWhatsAppLink(phone)}?text=${greeting}` : "";
+    const whatsappLink = phone
+      ? `whatsapp://send?phone=${phone.replace(/\D/g, "")}&text=${greeting}`
+      : "";
     return sendPush({
       userIds: everyone,
       title: `Aniversário de ${name} 🎉`,
-      body: "Toque para enviar uma mensagem pelo WhatsApp.",
-      link,
+      body: `Toque para ver os dados de ${name}.`,
+      link: appLink,
       image: birthday.get("photoUrl") || null,
-      data: { kind: phone ? "birthday" : "birthday-agenda", birthdayUserId: birthday.id, date: isoDate },
+      data: {
+        kind: "birthday",
+        birthdayUserId: birthday.id,
+        date: isoDate,
+        whatsappLink,
+        whatsappFallback,
+      },
     });
   }));
 

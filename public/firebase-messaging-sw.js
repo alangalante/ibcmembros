@@ -1,4 +1,4 @@
-const APP_SHELL_CACHE = "ibc-app-shell-v1";
+const APP_SHELL_CACHE = "ibc-app-shell-v2";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -80,19 +80,39 @@ self.addEventListener("push", (event) => {
   const payload = event.data.json();
   const notification = payload.notification || {};
   const data = payload.data || {};
+  const actions = [];
+  if (data.whatsappLink) actions.push({ action: "whatsapp", title: "Enviar WhatsApp" });
+  if (data.kind === "agenda") actions.push({ action: "open", title: "Ver agenda" });
   event.waitUntil(self.registration.showNotification(data.title || notification.title || "IBC Membros", {
     body: data.body || notification.body,
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
     image: data.image || notification.image,
-    data: { link: data.link || "/" },
-    actions: [{ action: "open", title: data.kind === "birthday" ? "Enviar WhatsApp" : "Ver agenda" }],
+    data: {
+      appLink: data.link || "/",
+      whatsappLink: data.whatsappLink || "",
+      whatsappFallback: data.whatsappFallback || "",
+    },
+    actions,
   }));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  let rawLink = event.notification.data?.link || "/";
+  const notificationData = event.notification.data || {};
+  const isWhatsAppAction = event.action === "whatsapp";
+  let rawLink = isWhatsAppAction ? notificationData.whatsappLink : notificationData.appLink;
+  rawLink = rawLink || "/";
+
+  if (isWhatsAppAction) {
+    event.waitUntil(
+      clients.openWindow(rawLink).catch(() => {
+        if (notificationData.whatsappFallback) return clients.openWindow(notificationData.whatsappFallback);
+      })
+    );
+    return;
+  }
+
   let targetUrl = self.location.origin;
 
   try {

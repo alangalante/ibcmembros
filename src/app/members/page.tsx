@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { NavHeader } from "@/components/nav-header";
 import { useAuth } from "@/components/auth-provider";
@@ -32,6 +32,11 @@ export default function MembersDirectoryPage() {
 
   // Modal Ver Detalhes do Membro (para qualquer usuário)
   const [viewingUid, setViewingUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    const memberId = new URLSearchParams(window.location.search).get("member");
+    if (memberId) setViewingUid(memberId);
+  }, []);
 
   // Confirmação de Exclusão
   const [deleteTargetUid, setDeleteTargetUid] = useState<string | null>(null);
